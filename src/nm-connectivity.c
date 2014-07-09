@@ -38,6 +38,8 @@ G_DEFINE_TYPE (NMConnectivity, nm_connectivity, G_TYPE_OBJECT)
 #define DEFAULT_RESPONSE "NetworkManager is online" /* NOT LOCALIZED */
 
 typedef struct {
+	NMConfig *config;
+
 	char *uri;
 	char *response;
 	guint interval;
@@ -365,19 +367,84 @@ _set_property_response (NMConnectivity *self, const char *response)
 
 /**************************************************************************/
 
-NMConnectivity *
-nm_connectivity_new (void)
+static void
+_config_changed_cb (NMConfig *config, GHashTable *changes, NMConfigData *old_data, NMConnectivity *self)
 {
-	NMConfigData *config_data = nm_config_get_data (nm_config_get ());
+	gboolean changed = FALSE;
+	NMConfigData *new_data;
 
-	/* NMConnectivity is (almost) independent from NMConfig and works
-	 * fine without it. As convenience, the default constructor nm_connectivity_new()
-	 * uses the parameters from NMConfig to create an instance. */
-	return g_object_new (NM_TYPE_CONNECTIVITY,
+	g_return_if_fail (NM_CONNECTIVITY_GET_PRIVATE (self)->config == config);
+
+	new_data = nm_config_get_data (config);
+
+	g_object_freeze_notify (G_OBJECT (self));
+	changed |= _set_property_uri (self, nm_config_data_get_connectivity_uri (new_data));
+	changed |= _set_property_interval (self, nm_config_data_get_connectivity_interval (new_data), FALSE);
+	changed |= _set_property_response (self, nm_config_data_get_connectivity_response (new_data));
+
+	if (changed) {
+#if WITH_CONCHECK
+		NMConnectivityPrivate *priv = NM_CONNECTIVITY_GET_PRIVATE (self);
+
+		if (priv->check_id) {
+			if (!priv->running)
+				run_check (self);
+			else
+				priv->run_again = TRUE;
+		}
+#endif
+	}
+
+	g_object_thaw_notify (G_OBJECT (self));
+}
+
+static void
+_clear_config (NMConnectivity *self)
+{
+	NMConnectivityPrivate *priv = NM_CONNECTIVITY_GET_PRIVATE (self);
+
+	if (priv->config) {
+		g_object_remove_weak_pointer (G_OBJECT (priv->config), (gpointer *) &priv->config);
+		g_signal_handlers_disconnect_by_func (priv->config, _config_changed_cb, self);
+		priv->config = NULL;
+	}
+}
+
+NMConnectivity *
+nm_connectivity_new_with_config (NMConfig *config)
+{
+	NMConnectivity *self;
+	NMConnectivityPrivate *priv;
+	NMConfigData *config_data;
+
+	g_return_val_if_fail (config, NULL);
+
+	config_data = nm_config_get_data (config);
+	self = g_object_new (NM_TYPE_CONNECTIVITY,
 	                     NM_CONNECTIVITY_URI, nm_config_data_get_connectivity_uri (config_data),
 	                     NM_CONNECTIVITY_INTERVAL, nm_config_data_get_connectivity_interval (config_data),
 	                     NM_CONNECTIVITY_RESPONSE, nm_config_data_get_connectivity_response (config_data),
 	                     NULL);
+	priv = NM_CONNECTIVITY_GET_PRIVATE (self);
+
+	/* Creating an instance with nm_connectivity_new_with_config() connects
+	 * the instance to the NMConfig instance. When the connectivity parameters
+	 * of the NMConfig object change, the parameters propagate to the connectivity
+	 * object.
+	 *
+	 * When resetting one of the properties externally, the connection
+	 * to the NMConfig instance is released and the NMConnectivity instance
+	 * again becomes entirely independent from NMConfig.
+	 *
+	 * Also, the instance only keeps a weak reference to the NMConfig instance.
+	 */
+	priv->config = config;
+	g_object_add_weak_pointer (G_OBJECT (config), (gpointer *) &priv->config);
+	g_signal_connect (G_OBJECT (config),
+	                  NM_CONFIG_SIGNAL_CONFIG_CHANGED,
+	                  G_CALLBACK (_config_changed_cb),
+	                  self);
+	return self;
 }
 
 static void
@@ -388,12 +455,15 @@ set_property (GObject *object, guint property_id,
 
 	switch (property_id) {
 	case PROP_URI:
+		_clear_config (self);
 		_set_property_uri (self, g_value_get_string (value));
 		break;
 	case PROP_INTERVAL:
+		_clear_config (self);
 		_set_property_interval (self, g_value_get_uint (value), TRUE);
 		break;
 	case PROP_RESPONSE:
+		_clear_config (self);
 		_set_property_response (self, g_value_get_string (value));
 		break;
 	default:
@@ -461,6 +531,7 @@ dispose (GObject *object)
 
 	_run_check_cancel (self);
 #endif
+	_clear_config (self);
 }
 
 

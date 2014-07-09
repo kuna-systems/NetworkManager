@@ -4727,7 +4727,7 @@ nm_manager_new (NMSettings *settings,
 	g_signal_connect (priv->policy, "notify::" NM_POLICY_ACTIVATING_IP6_DEVICE,
 	                  G_CALLBACK (policy_activating_device_changed), singleton);
 
-	priv->connectivity = nm_connectivity_new ();
+	priv->connectivity = nm_connectivity_new_with_config (nm_config_get ());
 	g_signal_connect (priv->connectivity, "notify::" NM_CONNECTIVITY_STATE,
 	                  G_CALLBACK (connectivity_changed), singleton);
 
