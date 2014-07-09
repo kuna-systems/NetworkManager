@@ -37,6 +37,14 @@
 #include "nm-posix-signals.h"
 #include "nm-logging.h"
 
+
+static gboolean
+_handle_signal (gpointer user_data)
+{
+	nm_main_config_reload ();
+	return G_SOURCE_REMOVE;
+}
+
 static sigset_t signal_set;
 static gboolean *quit_early = NULL;
 
@@ -65,7 +73,7 @@ signal_handling_thread (void *arg)
 			break;
 		case SIGHUP:
 			/* Reread config stuff like system config files, VPN service files, etc */
-			nm_log_info (LOGD_CORE, "caught signal %d, not supported yet.", signo);
+			g_idle_add (_handle_signal, NULL);
 			break;
 		case SIGPIPE:
 			/* silently ignore signal */
