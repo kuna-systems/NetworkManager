@@ -28,6 +28,8 @@
 #include "nm-dbus-interface.h"
 #include "nm-types.h"
 
+#include "nm-config.h"
+
 #define NM_TYPE_CONNECTIVITY            (nm_connectivity_get_type ())
 #define NM_CONNECTIVITY(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), NM_TYPE_CONNECTIVITY, NMConnectivity))
 #define NM_CONNECTIVITY_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), NM_TYPE_CONNECTIVITY, NMConnectivityClass))
@@ -53,7 +55,7 @@ GType nm_connectivity_get_type (void);
 
 const char *nm_connectivity_state_to_string (NMConnectivityState state);
 
-NMConnectivity      *nm_connectivity_new          (void);
+NMConnectivity      *nm_connectivity_new_with_config (NMConfig *config);
 
 void                 nm_connectivity_set_online   (NMConnectivity       *self,
                                                    gboolean              online);
