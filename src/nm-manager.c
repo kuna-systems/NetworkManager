@@ -464,6 +464,20 @@ active_connection_get_by_path (NMManager *manager, const char *path)
 
 /************************************************************************/
 
+static void
+_config_changed_cb (NMConfig *config, GHashTable *changes, NMConfigData *old_data, NMManager *self)
+{
+	NMManagerPrivate *priv = NM_MANAGER_GET_PRIVATE (self);
+	NMConfigData *config_data = nm_config_get_data (priv->config);
+
+	nm_connectivity_set (priv->connectivity,
+	                     nm_config_data_get_connectivity_uri (config_data),
+	                     nm_config_data_get_connectivity_interval (config_data),
+	                     nm_config_data_get_connectivity_response (config_data));
+}
+
+/************************************************************************/
+
 static NMDevice *
 nm_manager_get_device_by_udi (NMManager *manager, const char *udi)
 {
@@ -4824,6 +4838,11 @@ nm_manager_init (NMManager *manager)
 	memset (priv->radio_states, 0, sizeof (priv->radio_states));
 
 	priv->config = g_object_ref (nm_config_get ());
+	g_signal_connect (G_OBJECT (priv->config),
+	                  NM_CONFIG_SIGNAL_CONFIG_CHANGED,
+	                  G_CALLBACK (_config_changed_cb),
+	                  manager);
+
 	config_data = nm_config_get_data (priv->config);
 	priv->connectivity = nm_connectivity_new (nm_config_data_get_connectivity_uri (config_data),
 	                                          nm_config_data_get_connectivity_interval (config_data),
@@ -5076,7 +5095,10 @@ dispose (GObject *object)
 	g_clear_object (&priv->primary_connection);
 	g_clear_object (&priv->activating_connection);
 
-	g_clear_object (&priv->config);
+	if (priv->config) {
+		g_signal_handlers_disconnect_by_func (priv->config, _config_changed_cb, manager);
+		priv->config = NULL;
+	}
 	if (priv->connectivity) {
 		g_signal_handlers_disconnect_by_func (priv->connectivity, connectivity_changed, manager);
 		g_clear_object (&priv->connectivity);

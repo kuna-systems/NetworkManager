@@ -28,6 +28,7 @@
 
 #include "nm-connectivity.h"
 #include "nm-logging.h"
+#include "NetworkManagerUtils.h"
 
 G_DEFINE_TYPE (NMConnectivity, nm_connectivity, G_TYPE_OBJECT)
 
