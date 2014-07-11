@@ -246,11 +246,11 @@ nm_connectivity_new (void)
 	const char *check_response;
 
 	config = nm_config_get ();
-	check_response = nm_config_get_connectivity_response (config);
+	check_response = nm_config_data_get_connectivity_response (nm_config_get_data (config));
 
 	self = g_object_new (NM_TYPE_CONNECTIVITY,
-	                     NM_CONNECTIVITY_URI, nm_config_get_connectivity_uri (config),
-	                     NM_CONNECTIVITY_INTERVAL, nm_config_get_connectivity_interval (config),
+	                     NM_CONNECTIVITY_URI, nm_config_data_get_connectivity_uri (nm_config_get_data (config)),
+	                     NM_CONNECTIVITY_INTERVAL, nm_config_data_get_connectivity_interval (nm_config_get_data (config)),
 	                     NM_CONNECTIVITY_RESPONSE, check_response ? check_response : DEFAULT_RESPONSE,
 	                     NULL);
 	g_return_val_if_fail (self != NULL, NULL);
