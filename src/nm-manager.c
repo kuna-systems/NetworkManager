@@ -4230,18 +4230,30 @@ handle_firmware_changed (gpointer user_data)
 	return FALSE;
 }
 
+static const char *
+_connectivity_state_to_string (NMConnectivityState state)
+{
+	static const char *connectivity_states[NM_CONNECTIVITY_MAX + 1] = {
+		[NM_CONNECTIVITY_UNKNOWN]   = "UNKNOWN",
+		[NM_CONNECTIVITY_NONE]      = "NONE",
+		[NM_CONNECTIVITY_PORTAL]    = "PORTAL",
+		[NM_CONNECTIVITY_LIMITED]   = "LIMITED",
+		[NM_CONNECTIVITY_FULL]      = "FULL",
+	};
+
+	g_return_val_if_fail (state >= 0 && state <= NM_CONNECTIVITY_MAX, "UNKNOWN");
+	return connectivity_states[state];
+}
+
 static void
 connectivity_changed (NMConnectivity *connectivity,
                       GParamSpec *pspec,
                       gpointer user_data)
 {
 	NMManager *self = NM_MANAGER (user_data);
-	NMConnectivityState state;
-	static const char *connectivity_states[] = { "UNKNOWN", "NONE", "PORTAL", "LIMITED", "FULL" };
 
-	state = nm_connectivity_get_state (connectivity);
 	nm_log_dbg (LOGD_CORE, "connectivity checking indicates %s",
-	            connectivity_states[state]);
+	            _connectivity_state_to_string (nm_connectivity_get_state (connectivity)));
 
 	nm_manager_update_state (self);
 	g_object_notify (G_OBJECT (self), NM_MANAGER_CONNECTIVITY);
