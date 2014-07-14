@@ -45,6 +45,7 @@ typedef struct {
 #if WITH_CONCHECK
 	SoupSession *soup_session;
 	gboolean running;
+	gboolean run_again;
 	guint check_id;
 #endif
 
@@ -131,6 +132,8 @@ nm_connectivity_check_cb (SoupSession *session, SoupMessage *msg, gpointer user_
 	update_state (self, new_state);
 }
 
+static gboolean run_check (gpointer user_data);
+
 static void
 run_check_complete (GObject      *object,
                     GAsyncResult *result,
@@ -146,6 +149,8 @@ run_check_complete (GObject      *object,
 		nm_log_err (LOGD_CONCHECK, "Connectivity check failed: %s", error->message);
 		g_error_free (error);
 	}
+	if (priv->run_again)
+		run_check (self);
 }
 
 static gboolean
@@ -156,6 +161,7 @@ run_check (gpointer user_data)
 
 	nm_connectivity_check_async (self, run_check_complete, NULL);
 	priv->running = TRUE;
+	priv->run_again = FALSE;
 	nm_log_dbg (LOGD_CONCHECK, "Connectivity check with uri '%s' started.", priv->uri);
 
 	return TRUE;
@@ -174,6 +180,8 @@ nm_connectivity_set_online (NMConnectivity *self,
 			priv->check_id = g_timeout_add_seconds (priv->interval, run_check, self);
 		if (!priv->running)
 			run_check (self);
+		else
+			priv->run_again = TRUE;
 
 		return;
 	} else if (priv->check_id) {
