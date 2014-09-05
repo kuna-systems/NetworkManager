@@ -56,15 +56,20 @@ nm_device_factory_create (GError **error)
 /**************************************************************************/
 
 static NMDevice *
-new_link (NMDeviceFactory *factory, NMPlatformLink *plink, GError **error)
+create_device (NMDeviceFactory *factory,
+               const char *iface,
+               NMPlatformLink *plink,
+               NMConnection *connection)
 {
+	g_return_val_if_fail (plink != NULL, NULL);
+
 	/* FIXME: check udev 'DEVTYPE' instead; but since we only support Intel
 	 * WiMAX devices for now this is appropriate.
 	 */
 	if (g_strcmp0 (plink->driver, "i2400m_usb") != 0)
 		return NULL;  /* unsupported */
 
-	return (NMDevice *) nm_device_wimax_new (plink);
+	return (NMDevice *) nm_device_wimax_new (plink->name);
 }
 
 NM_DEVICE_FACTORY_DECLARE_TYPES (
@@ -75,7 +80,7 @@ NM_DEVICE_FACTORY_DECLARE_TYPES (
 static void
 device_factory_interface_init (NMDeviceFactory *factory_iface)
 {
-	factory_iface->new_link = new_link;
+	factory_iface->create_device = create_device;
 	factory_iface->get_supported_types = get_supported_types;
 }
 

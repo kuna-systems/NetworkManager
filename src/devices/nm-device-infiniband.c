@@ -54,10 +54,7 @@ enum {
 	LAST_PROP
 };
 
-static void
-nm_device_infiniband_init (NMDeviceInfiniband * self)
-{
-}
+/*************************************************************/
 
 static guint32
 get_generic_capabilities (NMDevice *dev)
@@ -238,6 +235,56 @@ update_connection (NMDevice *device, NMConnection *connection)
 	g_object_set (G_OBJECT (s_infiniband), NM_SETTING_INFINIBAND_TRANSPORT_MODE, transport_mode, NULL);
 }
 
+static gboolean
+realize_new (NMDevice *device,
+             NMConnection *connection,
+             NMDevice *parent,
+             NMPlatformLink *out_plink,
+             GError **error)
+{
+	NMSettingInfiniband *s_infiniband;
+	int parent_ifindex, p_key;
+
+	g_assert (nm_device_get_ifindex (device) <= 0);
+	g_assert (out_plink);
+
+	s_infiniband = nm_connection_get_setting_infiniband (connection);
+	g_assert (s_infiniband);
+
+	/* Can only create partitions at this time */
+	p_key = nm_setting_infiniband_get_p_key (s_infiniband);
+	if (p_key < 0) {
+		g_set_error_literal (error, NM_DEVICE_ERROR, NM_DEVICE_ERROR_FAILED,
+		                     "only InfiniBand partitions can be created");
+		return FALSE;
+	}
+
+	parent_ifindex = nm_device_get_ifindex (parent);
+	if (parent_ifindex <= 0) {
+		g_set_error (error, NM_DEVICE_ERROR, NM_DEVICE_ERROR_FAILED,
+		             "failed to get InfiniBand parent %s ifindex",
+		             nm_device_get_iface (parent));
+		return FALSE;
+	}
+
+	if (   !nm_platform_infiniband_partition_add (parent_ifindex, p_key, out_plink)
+	    && nm_platform_get_error () != NM_PLATFORM_ERROR_EXISTS) {
+		g_set_error (error, NM_DEVICE_ERROR, NM_DEVICE_ERROR_FAILED,
+		             "failed to create InfiniBand P_Key interface: %s",
+		             nm_platform_get_error_msg ());
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+/*************************************************************/
+
+static void
+nm_device_infiniband_init (NMDeviceInfiniband * self)
+{
+}
+
 static void
 get_property (GObject *object, guint prop_id,
               GValue *value, GParamSpec *pspec)
@@ -272,6 +319,7 @@ nm_device_infiniband_class_init (NMDeviceInfinibandClass *klass)
 	object_class->get_property = get_property;
 	object_class->set_property = set_property;
 
+	parent_class->realize_new = realize_new;
 	parent_class->get_generic_capabilities = get_generic_capabilities;
 	parent_class->check_connection_compatible = check_connection_compatible;
 	parent_class->complete_connection = complete_connection;
@@ -293,52 +341,13 @@ nm_device_infiniband_class_init (NMDeviceInfinibandClass *klass)
 #define NM_INFINIBAND_FACTORY(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), NM_TYPE_INFINIBAND_FACTORY, NMInfinibandFactory))
 
 static NMDevice *
-new_link (NMDeviceFactory *factory, NMPlatformLink *plink, GError **error)
+create_device (NMDeviceFactory *factory,
+               const char *iface,
+               NMPlatformLink *plink,
+               NMConnection *connection)
 {
-	if (plink->type == NM_LINK_TYPE_INFINIBAND) {
-		return (NMDevice *) g_object_new (NM_TYPE_DEVICE_INFINIBAND,
-		                                  NM_DEVICE_PLATFORM_DEVICE, plink,
-		                                  NM_DEVICE_TYPE_DESC, "InfiniBand",
-		                                  NM_DEVICE_DEVICE_TYPE, NM_DEVICE_TYPE_INFINIBAND,
-		                                  NULL);
-	}
-	return NULL;
-}
-
-static NMDevice *
-create_virtual_device_for_connection (NMDeviceFactory *factory,
-                                      NMConnection *connection,
-                                      NMDevice *parent,
-                                      GError **error)
-{
-	NMSettingInfiniband *s_infiniband;
-	int p_key, parent_ifindex;
-	const char *iface;
-
-	if (!nm_connection_is_type (connection, NM_SETTING_INFINIBAND_SETTING_NAME))
-		return NULL;
-
-	g_return_val_if_fail (NM_IS_DEVICE_INFINIBAND (parent), NULL);
-
-	s_infiniband = nm_connection_get_setting_infiniband (connection);
-
-	iface = nm_setting_infiniband_get_virtual_interface_name (s_infiniband);
-	g_return_val_if_fail (iface != NULL, NULL);
-
-	parent_ifindex = nm_device_get_ifindex (parent);
-	p_key = nm_setting_infiniband_get_p_key (s_infiniband);
-
-	if (   !nm_platform_infiniband_partition_add (parent_ifindex, p_key, NULL)
-	    && nm_platform_get_error () != NM_PLATFORM_ERROR_EXISTS) {
-		nm_log_warn (LOGD_DEVICE | LOGD_INFINIBAND, "(%s): failed to add InfiniBand P_Key interface for '%s': %s",
-		             iface, nm_connection_get_id (connection),
-		             nm_platform_get_error_msg ());
-		return NULL;
-	}
-
 	return (NMDevice *) g_object_new (NM_TYPE_DEVICE_INFINIBAND,
 	                                  NM_DEVICE_IFACE, iface,
-	                                  NM_DEVICE_DRIVER, nm_device_get_driver (parent),
 	                                  NM_DEVICE_TYPE_DESC, "InfiniBand",
 	                                  NM_DEVICE_DEVICE_TYPE, NM_DEVICE_TYPE_INFINIBAND,
 	                                  NULL);
@@ -377,8 +386,7 @@ get_virtual_iface_name (NMDeviceFactory *factory,
 NM_DEVICE_FACTORY_DEFINE_INTERNAL (INFINIBAND, Infiniband, infiniband,
 	NM_DEVICE_FACTORY_DECLARE_LINK_TYPES    (NM_LINK_TYPE_INFINIBAND)
 	NM_DEVICE_FACTORY_DECLARE_SETTING_TYPES (NM_SETTING_INFINIBAND_SETTING_NAME),
-	factory_iface->new_link = new_link;
-	factory_iface->create_virtual_device_for_connection = create_virtual_device_for_connection;
+	factory_iface->create_device = create_device;
 	factory_iface->get_connection_parent = get_connection_parent;
 	factory_iface->get_virtual_iface_name = get_virtual_iface_name;
 	)

@@ -1189,36 +1189,38 @@ wmx_new_sdk_cb (struct wmxsdk *sdk, void *user_data)
 		priv->sdk_action_defer_id = g_idle_add (sdk_action_defer_cb, self);
 }
 
+
+static void
+setup (NMDevice *device, NMPlatformLink *plink)
+{
+	struct wmxsdk *sdk;
+
+	g_assert (plink->type == NM_LINK_TYPE_WIMAX);
+
+	NM_DEVICE_CLASS (nm_device_wimax_parent_class)->setup (device, plink);
+
+	nm_wimax_util_sdk_ref ();
+
+	/* See if the SDK already knows about this interface */
+	sdk = iwmx_sdk_get_wmxsdk_for_iface (nm_device_get_iface (device));
+	if (sdk)
+		wmx_new_sdk_cb (sdk, device);
+
+	/* If it doesn't, we want to be notified when it does */
+	iwmx_sdk_new_callback_register (wmx_new_sdk_cb, device);
+}
+
 /*************************************************************************/
 
 NMDevice *
-nm_device_wimax_new (NMPlatformLink *platform_device)
+nm_device_wimax_new (const char *iface)
 {
-	NMDevice *device;
-
-	g_return_val_if_fail (platform_device != NULL, NULL);
-
-	device = (NMDevice *) g_object_new (NM_TYPE_DEVICE_WIMAX,
-	                                    NM_DEVICE_PLATFORM_DEVICE, platform_device,
-	                                    NM_DEVICE_TYPE_DESC, "WiMAX",
-	                                    NM_DEVICE_DEVICE_TYPE, NM_DEVICE_TYPE_WIMAX,
-	                                    NM_DEVICE_RFKILL_TYPE, RFKILL_TYPE_WIMAX,
-	                                    NULL);
-	if (device) {
-		struct wmxsdk *sdk;
-
-		nm_wimax_util_sdk_ref ();
-
-		/* See if the SDK already knows about this interface */
-		sdk = iwmx_sdk_get_wmxsdk_for_iface (platform_device->name);
-		if (sdk)
-			wmx_new_sdk_cb (sdk, device);
-
-		/* If it doesn't, we want to be notified when it does */
-		iwmx_sdk_new_callback_register (wmx_new_sdk_cb, device);
-	}
-
-	return device;
+	return (NMDevice *) g_object_new (NM_TYPE_DEVICE_WIMAX,
+	                                  NM_DEVICE_IFACE, iface,
+	                                  NM_DEVICE_TYPE_DESC, "WiMAX",
+	                                  NM_DEVICE_DEVICE_TYPE, NM_DEVICE_TYPE_WIMAX,
+	                                  NM_DEVICE_RFKILL_TYPE, RFKILL_TYPE_WIMAX,
+	                                  NULL);
 }
 
 static void
@@ -1343,6 +1345,7 @@ nm_device_wimax_class_init (NMDeviceWimaxClass *klass)
 	device_class->set_enabled = set_enabled;
 
 	device_class->state_changed = device_state_changed;
+	device_class->setup = setup;
 
 	/* Properties */
 	g_object_class_install_property

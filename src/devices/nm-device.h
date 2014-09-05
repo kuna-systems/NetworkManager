@@ -102,6 +102,58 @@ typedef struct {
 
 	void            (* link_changed) (NMDevice *self, NMPlatformLink *info);
 
+	/**
+	 * realize_existing():
+	 * @self: the #NMDevice
+	 * @plink: the #NMPlatformLink if backed by a kernel netdevice
+	 * @error: location to store error, or %NULL
+	 *
+	 * Try to realize the device from existing backing resources.  No resources
+	 * should be created as a side-effect of this function.  This function
+	 * should only fail if critical device properties/resources (eg, VLAN ID)
+	 * fail to be read or initialized, that would cause the device to be
+	 * unusable.  For example, for any properties required to realize the device
+	 * during realize_new(), if reading those properties in realize_existing()
+	 * should fail, this function should probably return %FALSE and an error.
+	 *
+	 * Returns: %TRUE on success, %FALSE if some error ocurred when realizing
+	 * the device from backing resources
+	 */
+	gboolean        (*realize_existing) (NMDevice *self,
+	                                     NMPlatformLink *plink,
+	                                     GError **error);
+
+	/**
+	 * realize_new():
+	 * @self: the #NMDevice
+	 * @connection: the #NMConnection being activated
+	 * @parent: the parent #NMDevice, if any
+	 * @out_plink: on success, a backing kernel network device if one exists
+	 * @error: location to store error, or %NULL
+	 *
+	 * Create any backing resources (kernel devices, etc) required for this
+	 * device to activate @connection.  If the device is backed by a kernel
+	 * network device, that device should be returned in @out_plink after
+	 * being created.
+	 *
+	 * Returns: %TRUE on success, %FALSE on error
+	 */
+	gboolean        (*realize_new) (NMDevice *self,
+	                                NMConnection *connection,
+	                                NMDevice *parent,
+	                                NMPlatformLink *out_plink,
+	                                GError **error);
+
+	/**
+	 * setup():
+	 * @self: the #NMDevice
+	 * @plink: the #NMPlatformLink if backed by a kernel netdevice
+	 *
+	 * Update the device from backing resource properties (like hardware
+	 * addresses, carrier states, driver/firmware info, etc).
+	 */
+	void        (*setup) (NMDevice *self, NMPlatformLink *plink);
+
 	/* Hardware state (IFF_UP) */
 	gboolean        (*is_up)      (NMDevice *self);
 	gboolean        (*bring_up)   (NMDevice *self, gboolean *no_firmware);
@@ -212,7 +264,6 @@ typedef struct {
 
 	NMConnection *  (* new_default_connection) (NMDevice *self);
 } NMDeviceClass;
-
 
 typedef void (*NMDeviceAuthRequestFunc) (NMDevice *device,
                                          DBusGMethodInvocation *context,
@@ -342,6 +393,14 @@ void nm_device_set_initial_unmanaged_flag (NMDevice *device,
 
 gboolean nm_device_get_is_nm_owned (NMDevice *device);
 void     nm_device_set_nm_owned    (NMDevice *device);
+
+gboolean nm_device_realize_existing (NMDevice *device,
+                                     NMPlatformLink *plink,
+                                     GError **error);
+gboolean nm_device_realize_new      (NMDevice *self,
+                                     NMConnection *connection,
+                                     NMDevice *parent,
+                                     GError **error);
 
 gboolean nm_device_get_autoconnect (NMDevice *device);
 

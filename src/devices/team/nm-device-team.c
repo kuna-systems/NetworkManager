@@ -623,33 +623,16 @@ release_slave (NMDevice *device,
 	return success;
 }
 
-/******************************************************************/
-
-NMDevice *
-nm_device_team_new (NMPlatformLink *platform_device)
+static gboolean
+realize_new (NMDevice *device,
+             NMConnection *connection,
+             NMDevice *parent,
+             NMPlatformLink *out_plink,
+             GError **error)
 {
-	g_return_val_if_fail (platform_device != NULL, NULL);
+	const char *iface = nm_device_get_iface (device);
 
-	return (NMDevice *) g_object_new (NM_TYPE_DEVICE_TEAM,
-	                                  NM_DEVICE_PLATFORM_DEVICE, platform_device,
-	                                  NM_DEVICE_DRIVER, "team",
-	                                  NM_DEVICE_TYPE_DESC, "Team",
-	                                  NM_DEVICE_DEVICE_TYPE, NM_DEVICE_TYPE_TEAM,
-	                                  NM_DEVICE_IS_MASTER, TRUE,
-	                                  NULL);
-}
-
-NMDevice *
-nm_device_team_new_for_connection (NMConnection *connection, GError **error)
-{
-	const char *iface;
-
-	g_return_val_if_fail (connection != NULL, NULL);
-
-	iface = nm_connection_get_interface_name (connection);
-	g_return_val_if_fail (iface != NULL, NULL);
-
-	if (   !nm_platform_team_add (iface, NULL)
+	if (   !nm_platform_team_add (iface, out_plink)
 	    && nm_platform_get_error () != NM_PLATFORM_ERROR_EXISTS) {
 		g_set_error (error,
 		             NM_DEVICE_ERROR,
@@ -657,9 +640,17 @@ nm_device_team_new_for_connection (NMConnection *connection, GError **error)
 		             "failed to create team master interface '%s' for connection '%s': %s",
 		             iface, nm_connection_get_id (connection),
 		             nm_platform_get_error_msg ());
-		return NULL;
+		return FALSE;
 	}
 
+	return TRUE;
+}
+
+/******************************************************************/
+
+NMDevice *
+nm_device_team_new (const char *iface)
+{
 	return (NMDevice *) g_object_new (NM_TYPE_DEVICE_TEAM,
 	                                  NM_DEVICE_IFACE, iface,
 	                                  NM_DEVICE_DRIVER, "team",
@@ -750,6 +741,7 @@ nm_device_team_class_init (NMDeviceTeamClass *klass)
 	object_class->set_property = set_property;
 	object_class->dispose = dispose;
 
+	parent_class->realize_new = realize_new;
 	parent_class->get_generic_capabilities = get_generic_capabilities;
 	parent_class->is_available = is_available;
 	parent_class->check_connection_compatible = check_connection_compatible;

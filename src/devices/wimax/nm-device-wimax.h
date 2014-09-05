@@ -57,7 +57,7 @@ typedef struct {
 
 GType nm_device_wimax_get_type (void);
 
-NMDevice   *nm_device_wimax_new            (NMPlatformLink *platform_device);
+NMDevice   *nm_device_wimax_new (const char *iface);
 
 G_END_DECLS
 

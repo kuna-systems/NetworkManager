@@ -54,6 +54,23 @@ get_generic_capabilities (NMDevice *dev)
 		return NM_DEVICE_CAP_NONE;
 }
 
+static void
+setup (NMDevice *device, NMPlatformLink *plink)
+{
+	NMDeviceGeneric *self = NM_DEVICE_GENERIC (device);
+	NMDeviceGenericPrivate *priv = NM_DEVICE_GENERIC_GET_PRIVATE (self);
+	int ifindex;
+
+	NM_DEVICE_CLASS (nm_device_generic_parent_class)->setup (device, plink);
+
+	g_clear_pointer (&priv->type_description, g_free);
+	ifindex = nm_device_get_ip_ifindex (NM_DEVICE (self));
+	if (ifindex > 0)
+		priv->type_description = g_strdup (nm_platform_link_get_type_name (ifindex));
+
+	g_object_set (self, NM_DEVICE_DRIVER, plink ? plink->driver : NULL, NULL);
+}
+
 static gboolean
 check_connection_compatible (NMDevice *device, NMConnection *connection)
 {
@@ -90,12 +107,12 @@ update_connection (NMDevice *device, NMConnection *connection)
 /**************************************************************/
 
 NMDevice *
-nm_device_generic_new (NMPlatformLink *platform_device)
+nm_device_generic_new (NMPlatformLink *plink)
 {
-	g_return_val_if_fail (platform_device != NULL, NULL);
+	g_return_val_if_fail (plink != NULL, NULL);
 
 	return (NMDevice *) g_object_new (NM_TYPE_DEVICE_GENERIC,
-	                                  NM_DEVICE_PLATFORM_DEVICE, platform_device,
+	                                  NM_DEVICE_IFACE, plink->name,
 	                                  NM_DEVICE_TYPE_DESC, "Generic",
 	                                  NM_DEVICE_DEVICE_TYPE, NM_DEVICE_TYPE_GENERIC,
 	                                  NULL);
@@ -105,22 +122,6 @@ static void
 nm_device_generic_init (NMDeviceGeneric *self)
 {
 	nm_device_set_initial_unmanaged_flag (NM_DEVICE (self), NM_UNMANAGED_DEFAULT, TRUE);
-}
-
-static void
-constructed (GObject *object)
-{
-	NMDeviceGeneric *self = NM_DEVICE_GENERIC (object);
-	NMDeviceGenericPrivate *priv = NM_DEVICE_GENERIC_GET_PRIVATE (self);
-
-	if (!priv->type_description) {
-		int ifindex = nm_device_get_ip_ifindex (NM_DEVICE (self));
-
-		if (ifindex != 0)
-			priv->type_description = g_strdup (nm_platform_link_get_type_name (ifindex));
-	}
-
-	G_OBJECT_CLASS (nm_device_generic_parent_class)->constructed (object);
 }
 
 static void
@@ -178,11 +179,11 @@ nm_device_generic_class_init (NMDeviceGenericClass *klass)
 
 	parent_class->connection_type = NM_SETTING_GENERIC_SETTING_NAME;
 
-	object_class->constructed = constructed;
 	object_class->dispose = dispose;
 	object_class->get_property = get_property;
 	object_class->set_property = set_property;
 
+	parent_class->setup = setup;
 	parent_class->get_generic_capabilities = get_generic_capabilities;
 	parent_class->check_connection_compatible = check_connection_compatible;
 	parent_class->update_connection = update_connection;

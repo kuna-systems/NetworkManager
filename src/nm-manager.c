@@ -464,7 +464,7 @@ nm_manager_get_device_by_udi (NMManager *manager, const char *udi)
 	g_return_val_if_fail (udi != NULL, NULL);
 
 	for (iter = NM_MANAGER_GET_PRIVATE (manager)->devices; iter; iter = iter->next) {
-		if (!strcmp (nm_device_get_udi (NM_DEVICE (iter->data)), udi))
+		if (!g_strcmp0 (nm_device_get_udi (NM_DEVICE (iter->data)), udi))
 			return NM_DEVICE (iter->data);
 	}
 	return NULL;
@@ -1037,27 +1037,26 @@ system_create_virtual_device (NMManager *self, NMConnection *connection, GError 
 
 	nm_owned = !nm_platform_link_exists (iface);
 
-	device = nm_device_factory_create_virtual_device_for_connection (factory,
-	                                                                 connection,
-	                                                                 parent,
-	                                                                 &local_err);
+	device = nm_device_factory_create_device (factory, iface, NULL, connection);
 	if (device) {
-		g_assert_no_error (local_err);
-		if (nm_owned)
-			nm_device_set_nm_owned (device);
+		if (nm_device_realize_new (device, connection, parent, &local_err)) {
+			g_assert_no_error (local_err);
+			if (nm_owned)
+				nm_device_set_nm_owned (device);
 
-		/* If it was created by NM there's no connection to assume, but if it
-		 * previously existed there might be one.
-		 */
-		add_device (self, device, !nm_owned);
-
-		g_object_unref (device);
-	} else if (local_err) {
-		nm_log_err (LOGD_DEVICE, "(%s) failed to create virtual device: %s",
-		            nm_connection_get_id (connection), local_err->message);
-		g_propagate_error (error, local_err);
+			/* If it was created by NM there's no connection to assume, but if it
+			 * previously existed there might be one.
+			 */
+			add_device (self, device, !nm_owned);
+		} else {
+			nm_log_err (LOGD_DEVICE, "(%s) failed to create virtual device: %s",
+			            nm_connection_get_id (connection),
+			            local_err ? local_err->message : "(unknown error)");
+			g_propagate_error (error, local_err);
+			g_clear_object (&device);
+		}
 	} else {
-		nm_log_err (LOGD_DEVICE, "(%s) failed to create virtual device",
+		nm_log_warn (LOGD_DEVICE, "(%s) failed to create virtual device",
 		            nm_connection_get_id (connection));
 		g_set_error (error,
 		             NM_MANAGER_ERROR,
@@ -1832,7 +1831,14 @@ factory_device_added_cb (NMDeviceFactory *factory,
                          NMDevice *device,
                          gpointer user_data)
 {
-	add_device (NM_MANAGER (user_data), device, TRUE);
+	GError *error = NULL;
+
+	if (nm_device_realize_existing (device, NULL, &error))
+		add_device (NM_MANAGER (user_data), device, TRUE);
+	else {
+		nm_log_warn (LOGD_DEVICE, "(%s): %s", nm_device_get_iface (device), error->message);
+		g_error_free (error);
+	}
 }
 
 static gboolean
@@ -1896,16 +1902,16 @@ platform_link_added (NMManager *self,
 	/* Try registered device factories */
 	factory = nm_device_factory_manager_find_factory (ltypes, NULL);
 	if (factory) {
-		device = nm_device_factory_new_link (factory, plink, &error);
-		if (device && NM_IS_DEVICE (device)) {
-			g_assert_no_error (error);
-		} else if (error) {
-			nm_log_warn (LOGD_HW, "%s: factory failed to create device: (%d) %s",
-			             plink->udi,
-			             error ? error->code : -1,
-			             error ? error->message : "(unknown)");
-			g_clear_error (&error);
-			return;
+		device = nm_device_factory_create_device (factory, plink->name, plink, NULL);
+		if (device) {
+			if (!nm_device_realize_existing (device, plink, &error)) {
+				nm_log_warn (LOGD_HW, "%s: factory failed to create device: (%d) %s",
+				             plink->udi,
+				             error ? error->code : -1,
+				             error ? error->message : "(unknown)");
+				g_clear_error (&error);
+				return;
+			}
 		}
 	}
 

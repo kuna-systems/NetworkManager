@@ -28,6 +28,7 @@
 
 #include "nm-device-factory.h"
 #include "nm-logging.h"
+#include "nm-platform.h"
 
 const NMLinkType _nm_device_factory_no_default_links[] = { NM_LINK_TYPE_NONE };
 const char *_nm_device_factory_no_default_settings[] = { NULL };
@@ -78,33 +79,19 @@ nm_device_factory_start (NMDeviceFactory *factory)
 }
 
 NMDevice *
-nm_device_factory_new_link (NMDeviceFactory *factory,
-                            NMPlatformLink *plink,
-                            GError **error)
+nm_device_factory_create_device (NMDeviceFactory *factory,
+                                 const char *iface,
+                                 NMPlatformLink *plink,
+                                 NMConnection *connection)
 {
-	g_return_val_if_fail (factory != NULL, NULL);
-	g_return_val_if_fail (plink != NULL, NULL);
-
-	if (NM_DEVICE_FACTORY_GET_INTERFACE (factory)->new_link)
-		return NM_DEVICE_FACTORY_GET_INTERFACE (factory)->new_link (factory, plink, error);
-	return NULL;
-}
-
-NMDevice *
-nm_device_factory_create_virtual_device_for_connection (NMDeviceFactory *factory,
-                                                        NMConnection *connection,
-                                                        NMDevice *parent,
-                                                        GError **error)
-{
-	NMDeviceFactory *interface;
-
 	g_return_val_if_fail (factory, NULL);
-	g_return_val_if_fail (connection, NULL);
-	g_return_val_if_fail (!error || !*error, NULL);
+	g_return_val_if_fail (iface, NULL);
+	g_return_val_if_fail (plink || connection, NULL);
+	if (plink)
+		g_return_val_if_fail (strcmp (iface, plink->name) == 0, NULL);
 
-	interface = NM_DEVICE_FACTORY_GET_INTERFACE (factory);
-	if (interface->create_virtual_device_for_connection)
-		return interface->create_virtual_device_for_connection (factory, connection, parent, error);
+	if (NM_DEVICE_FACTORY_GET_INTERFACE (factory)->create_device)
+		return NM_DEVICE_FACTORY_GET_INTERFACE (factory)->create_device (factory, iface, plink, connection);
 	return NULL;
 }
 
