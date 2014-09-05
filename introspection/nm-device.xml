@@ -139,6 +139,11 @@
         The device MTU (maximum transmission unit).
       </tp:docstring>
     </property>
+    <property name="Realized" type="b" access="read">
+      <tp:docstring>
+        Whether the device actually exists, or is waiting to be instantiated.
+      </tp:docstring>
+    </property>
 
     <method name="Disconnect">
       <annotation name="org.freedesktop.DBus.GLib.CSymbol" value="impl_device_disconnect"/>

@@ -125,6 +125,7 @@ enum {
 	PROP_MASTER,
 	PROP_HW_ADDRESS,
 	PROP_HAS_PENDING_ACTION,
+	PROP_REALIZED,
 	LAST_PROP
 };
 
@@ -183,6 +184,7 @@ typedef struct {
 	char *        iface;   /* may change, could be renamed by user */
 	int           ifindex;
 	gboolean      is_software;
+	gboolean      realized;
 	char *        ip_iface;
 	int           ip_ifindex;
 	NMDeviceType  type;
@@ -516,12 +518,36 @@ nm_device_get_ifindex (NMDevice *self)
 	return NM_DEVICE_GET_PRIVATE (self)->ifindex;
 }
 
+/**
+ * nm_device_is_software:
+ * @self: the #NMDevice
+ *
+ * Indicates if the device is a software-based virtual device without
+ * backing hardware, which can be added and removed programmatically.
+ *
+ * Returns: %TRUE if the device is a software-based device
+ */
 gboolean
 nm_device_is_software (NMDevice *self)
 {
 	NMDevicePrivate *priv = NM_DEVICE_GET_PRIVATE (self);
 
 	return priv->is_software;
+}
+
+/**
+ * nm_device_is_realized:
+ * @self: the #NMDevice
+ *
+ * Indicates if the device is backed by kernel (netdev or some other kernel
+ * kernel device) or external (Bluez device, ModemManager device) resource.
+ *
+ * Returns: %TRUE if the device is backed by kernel or other resources
+ */
+gboolean
+nm_device_is_realized (NMDevice *self)
+{
+	return NM_DEVICE_GET_PRIVATE (self)->realized;
 }
 
 const char *
@@ -1545,6 +1571,9 @@ setup (NMDevice *self, NMPlatformLink *plink)
 		if (master > 0)
 			device_set_master (self, master);
 	}
+
+	priv->realized = TRUE;
+	g_object_notify (G_OBJECT (self), NM_DEVICE_REALIZED);
 }
 
 /**
@@ -2122,7 +2151,7 @@ device_has_config (NMDevice *self)
 		return TRUE;
 
 	/* The existence of a software device is good enough. */
-	if (nm_device_is_software (self))
+	if (nm_device_is_software (self) && nm_device_is_realized (self))
 		return TRUE;
 
 	/* Slaves are also configured by definition */
@@ -5758,7 +5787,7 @@ delete_on_deactivate_check_and_schedule (NMDevice *self, int ifindex)
 		return;
 	if (priv->queued_act_request)
 		return;
-	if (!nm_device_is_software (self))
+	if (!nm_device_is_software (self) || !nm_device_is_realized (self))
 		return;
 	if (nm_device_get_state (self) == NM_DEVICE_STATE_UNMANAGED)
 		return;
@@ -5857,10 +5886,10 @@ impl_device_delete (NMDevice *self, DBusGMethodInvocation *context)
 {
 	GError *error = NULL;
 
-	if (!nm_device_is_software (self)) {
+	if (!nm_device_is_software (self) || !nm_device_is_realized (self)) {
 		error = g_error_new_literal (NM_DEVICE_ERROR,
 		                             NM_DEVICE_ERROR_NOT_SOFTWARE,
-		                             "This device is not a software device");
+		                             "This device is not a software device or is not realized");
 		dbus_g_method_return_error (context, error);
 		g_error_free (error);
 		return;
@@ -8680,6 +8709,9 @@ get_property (GObject *object, guint prop_id,
 	case PROP_HAS_PENDING_ACTION:
 		g_value_set_boolean (value, nm_device_has_pending_action (self));
 		break;
+	case PROP_REALIZED:
+		g_value_set_boolean (value, priv->realized);
+		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 		break;
@@ -8931,6 +8963,13 @@ nm_device_class_init (NMDeviceClass *klass)
 	g_object_class_install_property
 		(object_class, PROP_HAS_PENDING_ACTION,
 		 g_param_spec_boolean (NM_DEVICE_HAS_PENDING_ACTION, "", "",
+		                       FALSE,
+		                       G_PARAM_READABLE |
+		                       G_PARAM_STATIC_STRINGS));
+
+	g_object_class_install_property
+		(object_class, PROP_REALIZED,
+		 g_param_spec_boolean (NM_DEVICE_REALIZED, "", "",
 		                       FALSE,
 		                       G_PARAM_READABLE |
 		                       G_PARAM_STATIC_STRINGS));

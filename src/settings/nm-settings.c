@@ -1675,12 +1675,15 @@ default_wired_clear_tag (NMSettings *self,
 		nm_config_set_ethernet_no_auto_default (NM_SETTINGS_GET_PRIVATE (self)->config, device);
 }
 
-void
-nm_settings_device_added (NMSettings *self, NMDevice *device)
+static void
+device_realized (NMDevice *device, GParamSpec *pspec, NMSettings *self)
 {
 	NMConnection *connection;
 	NMSettingsConnection *added;
 	GError *error = NULL;
+
+	if (!nm_device_is_realized (device))
+		return;
 
 	/* If the device isn't managed or it already has a default wired connection,
 	 * ignore it.
@@ -1717,6 +1720,18 @@ nm_settings_device_added (NMSettings *self, NMDevice *device)
 	nm_log_info (LOGD_SETTINGS, "(%s): created default wired connection '%s'",
 	             nm_device_get_iface (device),
 	             nm_connection_get_id (NM_CONNECTION (added)));
+}
+
+void
+nm_settings_device_added (NMSettings *self, NMDevice *device)
+{
+	if (nm_device_is_realized (device))
+		device_realized (device, NULL, self);
+	else {
+		g_signal_connect_after (device, "notify::" NM_DEVICE_REALIZED,
+		                        G_CALLBACK (device_realized),
+		                        self);
+	}
 }
 
 void
