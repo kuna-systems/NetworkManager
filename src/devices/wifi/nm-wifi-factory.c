@@ -23,6 +23,8 @@
 #include <gmodule.h>
 
 #include "nm-device-factory.h"
+#include "nm-setting-wireless.h"
+#include "nm-setting-olpc-mesh.h"
 #include "nm-device-wifi.h"
 #include "nm-device-olpc-mesh.h"
 #include "nm-settings-connection.h"
@@ -66,17 +68,16 @@ new_link (NMDeviceFactory *factory, NMPlatformLink *plink, GError **error)
 	return NULL;
 }
 
-static NMDeviceType
-get_device_type (NMDeviceFactory *factory)
-{
-	return NM_DEVICE_TYPE_WIFI;
-}
+DEFINE_DEVICE_FACTORY_SUPPORTED_TYPES (
+	DEFINE_FACTORY_LINK_TYPES    (NM_LINK_TYPE_WIFI, NM_LINK_TYPE_OLPC_MESH)
+	DEFINE_FACTORY_SETTING_TYPES (NM_SETTING_WIRELESS_SETTING_NAME, NM_SETTING_OLPC_MESH_SETTING_NAME)
+)
 
 static void
 device_factory_interface_init (NMDeviceFactory *factory_iface)
 {
 	factory_iface->new_link = new_link;
-	factory_iface->get_device_type = get_device_type;
+	factory_iface->get_supported_types = get_supported_types;
 }
 
 static void

@@ -178,7 +178,8 @@ new_link (NMDeviceFactory *factory, NMPlatformLink *plink, GError **error)
 	return NULL;
 }
 
-DEFINE_DEVICE_FACTORY_INTERNAL_WITH_DEVTYPE(VETH, Veth, veth, ETHERNET, \
-	factory_iface->new_link = new_link; \
+DEFINE_DEVICE_FACTORY_INTERNAL      (VETH, Veth, veth,
+	DEFINE_FACTORY_LINK_TYPES    (NM_LINK_TYPE_VETH),
+	factory_iface->new_link = new_link;
 	)
 

@@ -597,7 +597,9 @@ create_virtual_device_for_connection (NMDeviceFactory *factory,
 		                              NULL);
 }
 
-DEFINE_DEVICE_FACTORY_INTERNAL(BOND, Bond, bond,
+DEFINE_DEVICE_FACTORY_INTERNAL      (BOND, Bond, bond,
+	DEFINE_FACTORY_LINK_TYPES    (NM_LINK_TYPE_BOND)
+	DEFINE_FACTORY_SETTING_TYPES (NM_SETTING_BOND_SETTING_NAME),
 	factory_iface->new_link = new_link;
 	factory_iface->create_virtual_device_for_connection = create_virtual_device_for_connection;
 	)

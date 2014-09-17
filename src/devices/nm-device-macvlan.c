@@ -187,7 +187,8 @@ new_link (NMDeviceFactory *factory, NMPlatformLink *plink, GError **error)
 	return NULL;
 }
 
-DEFINE_DEVICE_FACTORY_INTERNAL_WITH_DEVTYPE(MACVLAN, Macvlan, macvlan, ETHERNET, \
-	factory_iface->new_link = new_link; \
+DEFINE_DEVICE_FACTORY_INTERNAL      (MACVLAN, Macvlan, macvlan,
+	DEFINE_FACTORY_LINK_TYPES    (NM_LINK_TYPE_MACVLAN, NM_LINK_TYPE_MACVTAP),
+	factory_iface->new_link = new_link;
 	)
 

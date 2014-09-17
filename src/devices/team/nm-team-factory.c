@@ -66,11 +66,10 @@ create_virtual_device_for_connection (NMDeviceFactory *factory,
 	return NULL;
 }
 
-static NMDeviceType
-get_device_type (NMDeviceFactory *factory)
-{
-	return NM_DEVICE_TYPE_TEAM;
-}
+DEFINE_DEVICE_FACTORY_SUPPORTED_TYPES (
+	DEFINE_FACTORY_LINK_TYPES    (NM_LINK_TYPE_TEAM)
+	DEFINE_FACTORY_SETTING_TYPES (NM_SETTING_TEAM_SETTING_NAME)
+)
 
 /************************************************************************/
 
@@ -84,7 +83,7 @@ device_factory_interface_init (NMDeviceFactory *factory_iface)
 {
 	factory_iface->new_link = new_link;
 	factory_iface->create_virtual_device_for_connection = create_virtual_device_for_connection;
-	factory_iface->get_device_type = get_device_type;
+	factory_iface->get_supported_types = get_supported_types;
 }
 
 static void

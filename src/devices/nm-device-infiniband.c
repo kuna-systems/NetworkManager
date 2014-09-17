@@ -344,8 +344,10 @@ create_virtual_device_for_connection (NMDeviceFactory *factory,
 	                                  NULL);
 }
 
-DEFINE_DEVICE_FACTORY_INTERNAL(INFINIBAND, Infiniband, infiniband, \
-	factory_iface->new_link = new_link; \
+DEFINE_DEVICE_FACTORY_INTERNAL      (INFINIBAND, Infiniband, infiniband,
+	DEFINE_FACTORY_LINK_TYPES    (NM_LINK_TYPE_INFINIBAND)
+	DEFINE_FACTORY_SETTING_TYPES (NM_SETTING_INFINIBAND_SETTING_NAME),
+	factory_iface->new_link = new_link;
 	factory_iface->create_virtual_device_for_connection = create_virtual_device_for_connection;
 	)
 

@@ -143,6 +143,13 @@ static gboolean find_master (NMManager *self,
 
 static void nm_manager_update_state (NMManager *manager);
 
+static NMDeviceFactory *find_device_factory_for_types (NMManager *self,
+                                                       const NMLinkType *needle_link_types,
+                                                       const char **needle_setting_types);
+
+static NMDeviceFactory *find_device_factory_for_connection (NMManager *self,
+                                                            NMConnection *connection);
+
 #define SSD_POKE_INTERVAL 120
 #define ORIGDEV_TAG "originating-device"
 
@@ -1030,6 +1037,7 @@ static NMDevice *
 system_create_virtual_device (NMManager *self, NMConnection *connection, GError **error)
 {
 	NMManagerPrivate *priv = NM_MANAGER_GET_PRIVATE (self);
+	NMDeviceFactory *factory;
 	GError *local_err = NULL;
 	GSList *iter;
 	char *iface = NULL;
@@ -1067,6 +1075,19 @@ system_create_virtual_device (NMManager *self, NMConnection *connection, GError 
 		}
 	}
 
+	factory = find_device_factory_for_connection (self, connection);
+	if (!factory) {
+		nm_log_err (LOGD_DEVICE, "(%s:%s) NetworkManager plugin for '%s' unavailable",
+		            nm_connection_get_id (connection), iface,
+		            nm_connection_get_connection_type (connection));
+		g_set_error (error,
+		             NM_MANAGER_ERROR,
+		             NM_MANAGER_ERROR_FAILED,
+		             "NetworkManager plugin for '%s' unavailable",
+		             nm_connection_get_connection_type (connection));
+		goto out;
+	}
+
 	/* Block notification of link added since we're creating the device
 	 * explicitly here, otherwise adding the platform/kernel device would
 	 * create it before this function can do the rest of the setup.
@@ -1075,25 +1096,12 @@ system_create_virtual_device (NMManager *self, NMConnection *connection, GError 
 
 	nm_owned = !nm_platform_link_exists (iface);
 
-	for (iter = priv->factories; iter; iter = iter->next) {
-		device = nm_device_factory_create_virtual_device_for_connection (NM_DEVICE_FACTORY (iter->data),
-		                                                                 connection,
-		                                                                 parent,
-		                                                                 &local_err);
-		if (device || local_err) {
-			if (device)
-				g_assert_no_error (local_err);
-			else {
-				nm_log_err (LOGD_DEVICE, "(%s) failed to create virtual device: %s",
-				            nm_connection_get_id (connection),
-				            local_err ? local_err->message : "(unknown error)");
-				g_propagate_error (error, local_err);
-			}
-			break;
-		}
-	}
-
+	device = nm_device_factory_create_virtual_device_for_connection (factory,
+	                                                                 connection,
+	                                                                 parent,
+	                                                                 &local_err);
 	if (device) {
+		g_assert_no_error (local_err);
 		if (nm_owned)
 			nm_device_set_nm_owned (device);
 
@@ -1103,16 +1111,18 @@ system_create_virtual_device (NMManager *self, NMConnection *connection, GError 
 		add_device (self, device, !nm_owned);
 
 		g_object_unref (device);
+	} else if (local_err) {
+		nm_log_err (LOGD_DEVICE, "(%s) failed to create virtual device: %s",
+		            nm_connection_get_id (connection), local_err->message);
+		g_propagate_error (error, local_err);
 	} else {
-		if (error && !*error)
-			nm_log_err (LOGD_DEVICE, "(%s:%s) NetworkManager plugin for '%s' unavailable",
-			            nm_connection_get_id (connection), iface,
-			            nm_connection_get_connection_type (connection));
-			g_set_error (error,
-			             NM_MANAGER_ERROR,
-			             NM_MANAGER_ERROR_FAILED,
-			             "NetworkManager plugin for '%s' unavailable",
-			             nm_connection_get_connection_type (connection));
+		nm_log_err (LOGD_DEVICE, "(%s) failed to create virtual device",
+		            nm_connection_get_id (connection));
+		g_set_error (error,
+		             NM_MANAGER_ERROR,
+		             NM_MANAGER_ERROR_FAILED,
+		             "(%s) failed to create virtual device",
+		             nm_connection_get_connection_type (connection));
 	}
 
 	priv->ignore_link_added_cb--;
@@ -2006,6 +2016,55 @@ NEXT:
 	return result;
 }
 
+static NMDeviceFactory *
+find_device_factory_for_types (NMManager *self,
+                               const NMLinkType *needle_link_types,
+                               const char **needle_setting_types)
+{
+	NMManagerPrivate *priv = NM_MANAGER_GET_PRIVATE (self);
+	GSList *iter;
+
+	for (iter = priv->factories; iter; iter = iter->next) {
+		const NMLinkType *haystack_link_types = NULL;
+		const char **haystack_setting_types = NULL;
+		guint i, n;
+
+		nm_device_factory_get_supported_types (NM_DEVICE_FACTORY (iter->data),
+		                                       &haystack_link_types,
+		                                       &haystack_setting_types);
+		/* Search for each link type from 'a' in 'b' */
+		if (needle_link_types && haystack_link_types) {
+			for (i = 0; needle_link_types[i] > NM_LINK_TYPE_UNKNOWN; i++) {
+				for (n = 0; haystack_link_types[n] > NM_LINK_TYPE_UNKNOWN; n++) {
+					if (needle_link_types[i] == haystack_link_types[n])
+						return NM_DEVICE_FACTORY (iter->data);
+				}
+			}
+		}
+
+		/* Search for each setting type from 'a' in 'b' */
+		if (needle_setting_types && haystack_setting_types) {
+			for (i = 0; needle_setting_types[i]; i++) {
+				for (n = 0; haystack_setting_types[n]; n++) {
+					if (g_strcmp0 (needle_setting_types[i], haystack_setting_types[n]) == 0)
+						return NM_DEVICE_FACTORY (iter->data);
+				}
+			}
+		}
+	}
+
+	return NULL;
+}
+
+static NMDeviceFactory *
+find_device_factory_for_connection (NMManager *self, NMConnection *connection)
+{
+	const char *stypes[2] = { nm_connection_get_connection_type (connection), NULL };
+
+	g_assert (stypes[0]);
+	return find_device_factory_for_types (self, NULL, stypes);
+}
+
 static gboolean
 _register_device_factory (NMManager *self,
                           NMDeviceFactory *factory,
@@ -2014,20 +2073,20 @@ _register_device_factory (NMManager *self,
                           GError **error)
 {
 	NMManagerPrivate *priv = NM_MANAGER_GET_PRIVATE (self);
-	NMDeviceType ftype;
-	GSList *iter;
 
 	if (duplicate_check) {
-		/* Make sure we don't double-register factories */
-		ftype = nm_device_factory_get_device_type (factory);
-		for (iter = priv->factories; iter; iter = iter->next) {
-			if (ftype == nm_device_factory_get_device_type (iter->data)) {
-				g_set_error (error, NM_MANAGER_ERROR, NM_MANAGER_ERROR_FAILED,
-				             "multiple plugins for same type (using '%s' instead of '%s')",
-				             (char *) g_object_get_data (G_OBJECT (iter->data), PLUGIN_PATH_TAG),
-				             path);
-				return FALSE;
-			}
+		NMDeviceFactory *found = NULL;
+		const NMLinkType *link_types = NULL;
+		const char **setting_types = NULL;
+
+		nm_device_factory_get_supported_types (factory, &link_types, &setting_types);
+		found = find_device_factory_for_types (self, link_types, setting_types);
+		if (found) {
+			g_set_error (error, NM_MANAGER_ERROR, NM_MANAGER_ERROR_FAILED,
+			             "multiple plugins for same type (using '%s' instead of '%s')",
+			             (char *) g_object_get_data (G_OBJECT (found), PLUGIN_PATH_TAG),
+			             path);
+			return FALSE;
 		}
 	}
 
@@ -2126,8 +2185,9 @@ platform_link_added (NMManager *self,
                      NMPlatformReason reason)
 {
 	NMManagerPrivate *priv = NM_MANAGER_GET_PRIVATE (self);
+	NMDeviceFactory *factory;
 	NMDevice *device = NULL;
-	GSList *iter;
+	const NMLinkType ltypes[] = { plink->type, NM_LINK_TYPE_NONE };
 	GError *error = NULL;
 
 	g_return_if_fail (ifindex > 0);
@@ -2138,17 +2198,19 @@ platform_link_added (NMManager *self,
 	if (nm_manager_get_device_by_ifindex (self, ifindex))
 		return;
 
-	/* Try registered device factories */
-	for (iter = priv->factories; iter; iter = iter->next) {
-		NMDeviceFactory *factory = NM_DEVICE_FACTORY (iter->data);
+	/* Ignore Bluetooth PAN interfaces; they are handled by their NMDeviceBt
+	 * parent and don't get a separate interface.
+	 */
+	if (!strncmp (plink->name, "bnep", STRLEN ("bnep")))
+		return;
 
+	/* Try registered device factories */
+	factory = find_device_factory_for_types (self, ltypes, NULL);
+	if (factory) {
 		device = nm_device_factory_new_link (factory, plink, &error);
 		if (device && NM_IS_DEVICE (device)) {
 			g_assert_no_error (error);
-			break;  /* success! */
-		}
-
-		if (error) {
+		} else if (error) {
 			nm_log_warn (LOGD_HW, "%s: factory failed to create device: (%d) %s",
 			             plink->udi,
 			             error ? error->code : -1,
@@ -2158,21 +2220,13 @@ platform_link_added (NMManager *self,
 		}
 	}
 
-	/* Ignore Bluetooth PAN interfaces; they are handled by their NMDeviceBt
-	 * parent and don't get a separate interface.
-	 */
-	if (!strncmp (plink->name, "bnep", STRLEN ("bnep")))
-		return;
-
 	if (device == NULL) {
 		switch (plink->type) {
-
 		case NM_LINK_TYPE_WWAN_ETHERNET:
 			/* WWAN pseudo-ethernet interfaces are handled automatically by
 			 * their NMDeviceModem and don't get a separate NMDevice object.
 			 */
 			break;
-
 		case NM_LINK_TYPE_OLPC_MESH:
 		case NM_LINK_TYPE_TEAM:
 		case NM_LINK_TYPE_WIFI:

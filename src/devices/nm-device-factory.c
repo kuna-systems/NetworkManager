@@ -108,12 +108,16 @@ nm_device_factory_get_type (void)
 	return device_factory_type;
 }
 
-NMDeviceType
-nm_device_factory_get_device_type (NMDeviceFactory *factory)
+void
+nm_device_factory_get_supported_types (NMDeviceFactory *factory,
+	                                   const NMLinkType **out_link_types,
+	                                   const char ***out_setting_types)
 {
-	g_return_val_if_fail (factory != NULL, NM_DEVICE_TYPE_UNKNOWN);
+	g_return_if_fail (factory != NULL);
 
-	return NM_DEVICE_FACTORY_GET_INTERFACE (factory)->get_device_type (factory);
+	NM_DEVICE_FACTORY_GET_INTERFACE (factory)->get_supported_types (factory,
+	                                                                out_link_types,
+	                                                                out_setting_types);
 }
 
 void

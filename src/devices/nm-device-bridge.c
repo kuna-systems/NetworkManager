@@ -537,7 +537,9 @@ create_virtual_device_for_connection (NMDeviceFactory *factory,
 	                                  NULL);
 }
 
-DEFINE_DEVICE_FACTORY_INTERNAL(BRIDGE, Bridge, bridge,
+DEFINE_DEVICE_FACTORY_INTERNAL      (BRIDGE, Bridge, bridge,
+	DEFINE_FACTORY_LINK_TYPES    (NM_LINK_TYPE_BRIDGE)
+	DEFINE_FACTORY_SETTING_TYPES (NM_SETTING_BRIDGE_SETTING_NAME),
 	factory_iface->new_link = new_link;
 	factory_iface->create_virtual_device_for_connection = create_virtual_device_for_connection;
 	)
