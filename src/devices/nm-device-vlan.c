@@ -665,7 +665,8 @@ create_virtual_device_for_connection (NMDeviceFactory *factory,
 	if (   !nm_platform_vlan_add (iface,
 	                              nm_device_get_ifindex (parent),
 	                              nm_setting_vlan_get_id (s_vlan),
-	                              nm_setting_vlan_get_flags (s_vlan))
+	                              nm_setting_vlan_get_flags (s_vlan),
+	                              NULL)
 	    && nm_platform_get_error () != NM_PLATFORM_ERROR_EXISTS) {
 		nm_log_warn (LOGD_DEVICE | LOGD_VLAN, "(%s) failed to add VLAN interface for '%s'",
 		             iface, nm_connection_get_id (connection));

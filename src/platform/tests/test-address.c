@@ -253,7 +253,7 @@ setup_tests (void)
 
 	nm_platform_link_delete (nm_platform_link_get_ifindex (DEVICE_NAME));
 	g_assert (!nm_platform_link_exists (DEVICE_NAME));
-	g_assert (nm_platform_dummy_add (DEVICE_NAME));
+	g_assert (nm_platform_dummy_add (DEVICE_NAME, NULL));
 	accept_signal (link_added);
 	free_signal (link_added);
 

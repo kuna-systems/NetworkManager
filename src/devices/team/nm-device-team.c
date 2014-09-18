@@ -649,7 +649,7 @@ nm_device_team_new_for_connection (NMConnection *connection, GError **error)
 	iface = nm_connection_get_interface_name (connection);
 	g_return_val_if_fail (iface != NULL, NULL);
 
-	if (   !nm_platform_team_add (iface)
+	if (   !nm_platform_team_add (iface, NULL)
 	    && nm_platform_get_error () != NM_PLATFORM_ERROR_EXISTS) {
 		g_set_error (error,
 		             NM_DEVICE_ERROR,

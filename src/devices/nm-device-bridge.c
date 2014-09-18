@@ -520,7 +520,8 @@ create_virtual_device_for_connection (NMDeviceFactory *factory,
 
 	if (   !nm_platform_bridge_add (iface,
 	                                mac_address_str ? mac_address : NULL,
-	                                mac_address_str ? ETH_ALEN : 0)
+	                                mac_address_str ? ETH_ALEN : 0,
+	                                NULL)
 	    && nm_platform_get_error () != NM_PLATFORM_ERROR_EXISTS) {
 		nm_log_warn (LOGD_DEVICE | LOGD_BRIDGE, "(%s): failed to create bridge master interface for '%s': %s",
 		             iface, nm_connection_get_id (connection),

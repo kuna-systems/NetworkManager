@@ -580,7 +580,7 @@ create_virtual_device_for_connection (NMDeviceFactory *factory,
 	iface = nm_connection_get_interface_name (connection);
 	g_return_val_if_fail (iface != NULL, NULL);
 
-	if (   !nm_platform_bond_add (iface)
+	if (   !nm_platform_bond_add (iface, NULL)
 		&& nm_platform_get_error () != NM_PLATFORM_ERROR_EXISTS) {
 		nm_log_warn (LOGD_DEVICE | LOGD_BOND, "(%s): failed to create bonding master interface for '%s': %s",
 			         iface, nm_connection_get_id (connection),
