@@ -152,6 +152,45 @@ nm_device_factory_create_virtual_device_for_connection (NMDeviceFactory *factory
 	return NULL;
 }
 
+const char *
+nm_device_factory_get_connection_parent (NMDeviceFactory *factory,
+                                         NMConnection *connection)
+{
+	g_return_val_if_fail (factory != NULL, NULL);
+	g_return_val_if_fail (connection != NULL, NULL);
+
+	if (!nm_connection_is_virtual (connection))
+		return NULL;
+
+	if (NM_DEVICE_FACTORY_GET_INTERFACE (factory)->get_connection_parent)
+		return NM_DEVICE_FACTORY_GET_INTERFACE (factory)->get_connection_parent (factory, connection);
+	return NULL;
+}
+
+char *
+nm_device_factory_get_virtual_iface_name (NMDeviceFactory *factory,
+                                          NMConnection *connection,
+                                          const char *parent_iface)
+{
+	const char *iface;
+
+	g_return_val_if_fail (factory != NULL, NULL);
+	g_return_val_if_fail (connection != NULL, NULL);
+
+	if (!nm_connection_is_virtual (connection))
+		return NULL;
+
+	if (NM_DEVICE_FACTORY_GET_INTERFACE (factory)->get_virtual_iface_name)
+		return NM_DEVICE_FACTORY_GET_INTERFACE (factory)->get_virtual_iface_name (factory, connection, parent_iface);
+
+	/* For any other virtual connection, NMSettingConnection:interface-name is
+	 * the virtual device name.
+	 */
+	iface = nm_connection_get_interface_name (connection);
+	g_return_val_if_fail (iface != NULL, NULL);
+	return g_strdup (iface);
+}
+
 /*******************************************************************/
 
 static GSList *internal_types = NULL;
