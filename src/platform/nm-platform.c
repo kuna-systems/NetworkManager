@@ -478,6 +478,32 @@ nm_platform_link_get (int ifindex, NMPlatformLink *link)
 }
 
 /**
+ * nm_platform_link_get_by_address:
+ * @ifindex: ifindex of the link
+ * @address: a pointer to the binary hardware address
+ * @length: the size of @address in bytes
+ * @link: (out): output NMPlatformLink structure.
+ *
+ * If a link with given @address exists, fill the given NMPlatformLink
+ * structure.
+ *
+ * Returns: %TRUE, if such a link exists, %FALSE otherwise.
+ * If the link does not exist, the content of @link is undefined.
+ **/
+gboolean
+nm_platform_link_get_by_address (gconstpointer address,
+                                 size_t length,
+                                 NMPlatformLink *link)
+{
+	g_return_val_if_fail (address != NULL, FALSE);
+	g_return_val_if_fail (length > 0, FALSE);
+	g_return_val_if_fail (link, FALSE);
+
+	g_return_val_if_fail (klass->link_get_by_address, FALSE);
+	return !!klass->link_get_by_address (platform, address, length, link);
+}
+
+/**
  * nm_platform_link_add:
  * @name: Interface name
  * @type: Interface type
