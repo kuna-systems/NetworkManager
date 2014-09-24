@@ -44,12 +44,15 @@ G_DEFINE_TYPE (NMDeviceInfiniband, nm_device_infiniband, NM_TYPE_DEVICE)
 
 #define NM_DEVICE_INFINIBAND_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), NM_TYPE_DEVICE_INFINIBAND, NMDeviceInfinibandPrivate))
 
+#define NM_DEVICE_INFINIBAND_IS_PARTITION "is-partition"
+
 typedef struct {
-	int dummy;
+	gboolean is_partition;
 } NMDeviceInfinibandPrivate;
 
 enum {
 	PROP_0,
+	PROP_IS_PARTITION,
 
 	LAST_PROP
 };
@@ -59,7 +62,12 @@ enum {
 static guint32
 get_generic_capabilities (NMDevice *dev)
 {
-	return NM_DEVICE_CAP_CARRIER_DETECT;
+	guint32 caps = NM_DEVICE_CAP_CARRIER_DETECT;
+
+	if (NM_DEVICE_INFINIBAND_GET_PRIVATE (dev)->is_partition)
+		caps |= NM_DEVICE_CAP_IS_SOFTWARE;
+
+	return caps;
 }
 
 static NMActStageReturn
@@ -275,6 +283,7 @@ create_and_realize (NMDevice *device,
 		return FALSE;
 	}
 
+	NM_DEVICE_INFINIBAND_GET_PRIVATE (device)->is_partition = TRUE;
 	return TRUE;
 }
 
@@ -290,6 +299,9 @@ get_property (GObject *object, guint prop_id,
               GValue *value, GParamSpec *pspec)
 {
 	switch (prop_id) {
+	case PROP_IS_PARTITION:
+		g_value_set_boolean (value, NM_DEVICE_INFINIBAND_GET_PRIVATE (object)->is_partition);
+		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 		break;
@@ -301,6 +313,9 @@ set_property (GObject *object, guint prop_id,
 			  const GValue *value, GParamSpec *pspec)
 {
 	switch (prop_id) {
+	case PROP_IS_PARTITION:
+		NM_DEVICE_INFINIBAND_GET_PRIVATE (object)->is_partition = g_value_get_boolean (value);
+		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 		break;
@@ -329,6 +344,12 @@ nm_device_infiniband_class_init (NMDeviceInfinibandClass *klass)
 	parent_class->ip4_config_pre_commit = ip4_config_pre_commit;
 
 	/* properties */
+	g_object_class_install_property
+		(object_class, PROP_IS_PARTITION,
+		 g_param_spec_boolean (NM_DEVICE_INFINIBAND_IS_PARTITION, "", "",
+		                       FALSE,
+		                       G_PARAM_READWRITE | G_PARAM_CONSTRUCT |
+		                       G_PARAM_STATIC_STRINGS));
 
 	nm_dbus_manager_register_exported_type (nm_dbus_manager_get (),
 	                                        G_TYPE_FROM_CLASS (klass),
@@ -346,10 +367,25 @@ create_device (NMDeviceFactory *factory,
                NMPlatformLink *plink,
                NMConnection *connection)
 {
+	gboolean is_partition = FALSE;
+
+	if (plink)
+		is_partition = (plink->parent > 0);
+	else if (connection) {
+		NMSettingInfiniband *s_infiniband;
+
+		s_infiniband = nm_connection_get_setting_infiniband (connection);
+		g_return_val_if_fail (s_infiniband, NULL);
+		is_partition =    !!nm_setting_infiniband_get_parent (s_infiniband)
+		               || (   nm_setting_infiniband_get_p_key (s_infiniband) >= 0
+		                   && nm_setting_infiniband_get_mac_address (s_infiniband));
+	}
+
 	return (NMDevice *) g_object_new (NM_TYPE_DEVICE_INFINIBAND,
 	                                  NM_DEVICE_IFACE, iface,
 	                                  NM_DEVICE_TYPE_DESC, "InfiniBand",
 	                                  NM_DEVICE_DEVICE_TYPE, NM_DEVICE_TYPE_INFINIBAND,
+	                                  NM_DEVICE_INFINIBAND_IS_PARTITION, is_partition,
 	                                  NULL);
 }
 
