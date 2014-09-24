@@ -457,20 +457,6 @@ active_connection_get_by_path (NMManager *manager, const char *path)
 /************************************************************************/
 
 static NMDevice *
-nm_manager_get_device_by_udi (NMManager *manager, const char *udi)
-{
-	GSList *iter;
-
-	g_return_val_if_fail (udi != NULL, NULL);
-
-	for (iter = NM_MANAGER_GET_PRIVATE (manager)->devices; iter; iter = iter->next) {
-		if (!g_strcmp0 (nm_device_get_udi (NM_DEVICE (iter->data)), udi))
-			return NM_DEVICE (iter->data);
-	}
-	return NULL;
-}
-
-static NMDevice *
 nm_manager_get_device_by_path (NMManager *manager, const char *path)
 {
 	GSList *iter;
@@ -526,6 +512,18 @@ find_device_by_ip_iface (NMManager *self, const gchar *iface)
 
 	for (iter = NM_MANAGER_GET_PRIVATE (self)->devices; iter; iter = g_slist_next (iter)) {
 		if (g_strcmp0 (nm_device_get_ip_iface (NM_DEVICE (iter->data)), iface) == 0)
+			return NM_DEVICE (iter->data);
+	}
+	return NULL;
+}
+
+static NMDevice *
+find_device_by_iface (NMManager *self, const gchar *iface)
+{
+	GSList *iter;
+
+	for (iter = NM_MANAGER_GET_PRIVATE (self)->devices; iter; iter = g_slist_next (iter)) {
+		if (g_strcmp0 (nm_device_get_iface (NM_DEVICE (iter->data)), iface) == 0)
 			return NM_DEVICE (iter->data);
 	}
 	return NULL;
@@ -1727,7 +1725,7 @@ add_device (NMManager *self, NMDevice *device, gboolean try_assume)
 	gboolean connection_assumed = FALSE;
 
 	/* No duplicates */
-	if (nm_manager_get_device_by_udi (self, nm_device_get_udi (device)))
+	if (find_device_by_iface (self, nm_device_get_iface (device)))
 		return;
 
 	/* Remove existing devices owned by the new device; eg remove ethernet
