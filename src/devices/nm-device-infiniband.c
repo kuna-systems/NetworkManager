@@ -143,6 +143,7 @@ static gboolean
 check_connection_compatible (NMDevice *device, NMConnection *connection)
 {
 	NMSettingInfiniband *s_infiniband;
+	const char *mac;
 
 	if (!NM_DEVICE_CLASS (nm_device_infiniband_parent_class)->check_connection_compatible (device, connection))
 		return FALSE;
@@ -154,9 +155,7 @@ check_connection_compatible (NMDevice *device, NMConnection *connection)
 	if (!s_infiniband)
 		return FALSE;
 
-	if (s_infiniband) {
-		const char *mac;
-
+	if (nm_device_is_real (device)) {
 		mac = nm_setting_infiniband_get_mac_address (s_infiniband);
 		if (mac && !nm_utils_hwaddr_matches (mac, -1, nm_device_get_hw_address (device), -1))
 			return FALSE;

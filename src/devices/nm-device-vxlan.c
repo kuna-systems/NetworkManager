@@ -133,11 +133,11 @@ link_changed (NMDevice *device, NMPlatformLink *info)
 }
 
 static void
-setup (NMDevice *device, NMPlatformLink *plink)
+setup_start (NMDevice *device, NMPlatformLink *plink)
 {
 	g_assert (plink->type == NM_LINK_TYPE_VXLAN);
 
-	NM_DEVICE_CLASS (nm_device_vxlan_parent_class)->setup (device, plink);
+	NM_DEVICE_CLASS (nm_device_vxlan_parent_class)->setup_start (device, plink);
 
 	update_properties (device);
 }
@@ -230,7 +230,7 @@ nm_device_vxlan_class_init (NMDeviceVxlanClass *klass)
 	object_class->get_property = get_property;
 
 	device_class->link_changed = link_changed;
-	device_class->setup = setup;
+	device_class->setup_start = setup_start;
 
 	/* properties */
 	g_object_class_install_property

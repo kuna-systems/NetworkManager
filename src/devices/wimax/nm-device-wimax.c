@@ -1191,13 +1191,13 @@ wmx_new_sdk_cb (struct wmxsdk *sdk, void *user_data)
 
 
 static void
-setup (NMDevice *device, NMPlatformLink *plink)
+setup_start (NMDevice *device, NMPlatformLink *plink)
 {
 	struct wmxsdk *sdk;
 
 	g_assert (plink->type == NM_LINK_TYPE_WIMAX);
 
-	NM_DEVICE_CLASS (nm_device_wimax_parent_class)->setup (device, plink);
+	NM_DEVICE_CLASS (nm_device_wimax_parent_class)->setup_start (device, plink);
 
 	nm_wimax_util_sdk_ref ();
 
@@ -1345,7 +1345,7 @@ nm_device_wimax_class_init (NMDeviceWimaxClass *klass)
 	device_class->set_enabled = set_enabled;
 
 	device_class->state_changed = device_state_changed;
-	device_class->setup = setup;
+	device_class->setup_start = setup_start;
 
 	/* Properties */
 	g_object_class_install_property
