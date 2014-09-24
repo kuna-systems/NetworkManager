@@ -1573,6 +1573,67 @@ setup (NMDevice *self, NMPlatformLink *plink)
 	g_object_notify (G_OBJECT (self), NM_DEVICE_REAL);
 }
 
+static gboolean
+unrealize (NMDevice *self, gboolean link_deleted, GError **error)
+{
+	int ifindex = nm_device_get_ifindex (self);
+
+	if (ifindex > 0 && nm_device_is_software (self) && !link_deleted)
+		nm_platform_link_delete (ifindex);
+
+	return TRUE;
+}
+
+/**
+ * nm_device_unrealize():
+ * @self: the #NMDevice
+ * @error: location to store error, or %NULL
+ *
+ * Release any backing resources (kernel devices, etc) created for this
+ * device and clear properties associated with external resources.
+ *
+ * Returns: %TRUE on success, %FALSE on error
+ */
+gboolean
+nm_device_unrealize (NMDevice *self, gboolean link_deleted, GError **error)
+{
+	NMDevicePrivate *priv = NM_DEVICE_GET_PRIVATE (self);
+	gboolean success = TRUE;
+
+	g_return_val_if_fail (nm_device_is_real (self), FALSE);
+	g_return_val_if_fail (nm_device_is_software (self), FALSE);
+	g_return_val_if_fail (priv->iface != NULL, FALSE);
+
+	if (NM_DEVICE_GET_CLASS (self)->unrealize)
+		success = NM_DEVICE_GET_CLASS (self)->unrealize (self, link_deleted, error);
+
+	priv->ifindex = 0;
+	priv->ip_ifindex = 0;
+	g_clear_pointer (&priv->ip_iface, g_free);
+	g_object_notify (G_OBJECT (self), NM_DEVICE_IP_IFACE);
+	g_clear_pointer (&priv->driver_version, g_free);
+	g_object_notify (G_OBJECT (self), NM_DEVICE_DRIVER_VERSION);
+	g_clear_pointer (&priv->firmware_version, g_free);
+	g_object_notify (G_OBJECT (self), NM_DEVICE_FIRMWARE_VERSION);
+	g_clear_pointer (&priv->udi, g_free);
+	g_object_notify (G_OBJECT (self), NM_DEVICE_UDI);
+	g_clear_pointer (&priv->hw_addr, g_free);
+	g_object_notify (G_OBJECT (self), NM_DEVICE_HW_ADDRESS);
+	g_clear_pointer (&priv->physical_port_id, g_free);
+	g_object_notify (G_OBJECT (self), NM_DEVICE_PHYSICAL_PORT_ID);
+
+	g_clear_pointer (&priv->perm_hw_addr, g_free);
+	g_clear_pointer (&priv->initial_hw_addr, g_free);
+
+	priv->capabilities = NM_DEVICE_CAP_NM_SUPPORTED;
+	g_object_notify (G_OBJECT (self), NM_DEVICE_CAPABILITIES);
+
+	priv->real = FALSE;
+	g_object_notify (G_OBJECT (self), NM_DEVICE_REAL);
+
+	return success;
+}
+
 /**
  * nm_device_notify_component_added():
  * @self: the #NMDevice
@@ -5740,16 +5801,20 @@ delete_on_deactivate_link_delete (gpointer user_data)
 	DeleteOnDeactivateData *data = user_data;
 	NMDevice *self = data->device;
 
+	_LOGD (LOGD_DEVICE, "delete_on_deactivate: cleanup and delete virtual link #%d (id=%u)",
+	       data->ifindex, data->idle_add_id);
+
 	if (data->device) {
 		NMDevicePrivate *priv = NM_DEVICE_GET_PRIVATE (data->device);
 
 		g_object_remove_weak_pointer (G_OBJECT (data->device), (void **) &data->device);
 		priv->delete_on_deactivate_data = NULL;
+
+		nm_device_unrealize (data->device, FALSE, NULL);
+	} else {
+		nm_platform_link_delete (data->ifindex);
 	}
 
-	_LOGD (LOGD_DEVICE, "delete_on_deactivate: cleanup and delete virtual link #%d (id=%u)",
-	       data->ifindex, data->idle_add_id);
-	nm_platform_link_delete (data->ifindex);
 	g_free (data);
 	return FALSE;
 }
@@ -5868,14 +5933,20 @@ delete_cb (NMDevice *self,
            GError *error,
            gpointer user_data)
 {
+	GError *local = NULL;
+
 	if (error) {
 		dbus_g_method_return_error (context, error);
 		return;
 	}
 
 	/* Authorized */
-	nm_platform_link_delete (nm_device_get_ifindex (self));
-	dbus_g_method_return (context);
+	if (nm_device_unrealize (self, FALSE, &local))
+		dbus_g_method_return (context);
+	else {
+		dbus_g_method_return_error (context, local);
+		g_clear_error (&local);
+	}
 }
 
 static void
@@ -8745,6 +8816,7 @@ nm_device_class_init (NMDeviceClass *klass)
 	klass->check_connection_compatible = check_connection_compatible;
 	klass->check_connection_available = check_connection_available;
 	klass->setup = setup;
+	klass->unrealize = unrealize;
 	klass->is_up = is_up;
 	klass->bring_up = bring_up;
 	klass->take_down = take_down;

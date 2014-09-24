@@ -1951,19 +1951,28 @@ platform_link_cb (NMPlatform *platform,
                   NMPlatformReason reason,
                   gpointer user_data)
 {
+	NMManager *self = NM_MANAGER (user_data);
+	NMDevice *device;
+	GError *error = NULL;
+
 	switch (change_type) {
 	case NM_PLATFORM_SIGNAL_ADDED:
-		platform_link_added (NM_MANAGER (user_data), ifindex, plink, reason);
+		platform_link_added (self, ifindex, plink, reason);
 		break;
-	case NM_PLATFORM_SIGNAL_REMOVED: {
-		NMManager *self = NM_MANAGER (user_data);
-		NMDevice *device;
-
+	case NM_PLATFORM_SIGNAL_REMOVED:
 		device = nm_manager_get_device_by_ifindex (self, ifindex);
-		if (device)
-			remove_device (self, device, FALSE, TRUE);
+		if (!device)
+			break;
+		if (nm_device_is_software (device)) {
+			if (!nm_device_unrealize (device, TRUE, &error)) {
+				nm_log_warn (LOGD_DEVICE, "(%s): failed to unrealize: %s",
+				             nm_device_get_iface (device),
+				             error->message);
+				g_clear_error (&error);
+			}
+		}
+		remove_device (self, device, FALSE, TRUE);
 		break;
-	 }
 	 default:
 		break;
 	 }
