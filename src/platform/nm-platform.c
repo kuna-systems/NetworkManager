@@ -1064,6 +1064,28 @@ nm_platform_link_get_wake_on_lan (int ifindex)
 }
 
 /**
+ * nm_platform_link_get_driver_info:
+ * @ifindex: Interface index
+ * @out_driver_version: on success, the driver version if available
+ * @out_fw_version: on success, the firmware version if available
+ *
+ * Returns: %TRUE on success (though @out_driver_version and @out_fw_version
+ * can be %NULL if no information was available), %FALSE on failure
+ */
+gboolean
+nm_platform_link_get_driver_info (int ifindex,
+                                  char **out_driver_version,
+                                  char **out_fw_version)
+{
+	reset_error ();
+
+	g_return_val_if_fail (ifindex >= 0, FALSE);
+	g_return_val_if_fail (klass->link_get_driver_info, FALSE);
+
+	return klass->link_get_driver_info (platform, ifindex, out_driver_version, out_fw_version);
+}
+
+/**
  * nm_platform_link_enslave:
  * @master: Interface index of the master
  * @slave: Interface index of the slave
