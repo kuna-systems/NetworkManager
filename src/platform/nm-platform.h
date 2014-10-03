@@ -374,6 +374,10 @@ typedef struct {
 	gboolean (*link_set_user_ipv6ll_enabled) (NMPlatform *, int ifindex, gboolean enabled);
 
 	gconstpointer (*link_get_address) (NMPlatform *, int ifindex, size_t *length);
+	gboolean (*link_get_permanent_address) (NMPlatform *,
+	                                        int ifindex,
+	                                        guint8 *buf,
+	                                        size_t *length);
 	gboolean (*link_set_address) (NMPlatform *, int ifindex, gconstpointer address, size_t length);
 	guint32 (*link_get_mtu) (NMPlatform *, int ifindex);
 	gboolean (*link_set_mtu) (NMPlatform *, int ifindex, guint32 mtu);
@@ -528,6 +532,7 @@ gboolean nm_platform_link_get_user_ipv6ll_enabled (int ifindex);
 gboolean nm_platform_link_set_user_ipv6ll_enabled (int ifindex, gboolean enabled);
 
 gconstpointer nm_platform_link_get_address (int ifindex, size_t *length);
+gboolean nm_platform_link_get_permanent_address (int ifindex, guint8 *buf, size_t *length);
 gboolean nm_platform_link_set_address (int ifindex, const void *address, size_t length);
 guint32 nm_platform_link_get_mtu (int ifindex);
 gboolean nm_platform_link_set_mtu (int ifindex, guint32 mtu);

@@ -885,7 +885,8 @@ nm_platform_link_set_address (int ifindex, gconstpointer address, size_t length)
  * @ifindex: Interface index
  * @length: Pointer to a variable to store address length
  *
- * Saves interface hardware address to @address.
+ * Returns: the interface hardware address as an array of bytes of
+ * length @length.
  */
 gconstpointer
 nm_platform_link_get_address (int ifindex, size_t *length)
@@ -899,6 +900,32 @@ nm_platform_link_get_address (int ifindex, size_t *length)
 	g_return_val_if_fail (klass->link_get_address, NULL);
 
 	return klass->link_get_address (platform, ifindex, length);
+}
+
+/**
+ * nm_platform_link_get_permanent_address:
+ * @ifindex: Interface index
+ * @buf: buffer of at least %NM_UTILS_HWADDR_LEN_MAX bytes, on success
+ * the permanent hardware address
+ * @length: Pointer to a variable to store address length
+ *
+ * Returns: %TRUE on success, %FALSE on failure to read the permanent hardware
+ * address.
+ */
+gboolean
+nm_platform_link_get_permanent_address (int ifindex, guint8 *buf, size_t *length)
+{
+	reset_error ();
+
+	if (length)
+		*length = 0;
+
+	g_return_val_if_fail (ifindex > 0, FALSE);
+	g_return_val_if_fail (klass->link_get_permanent_address, FALSE);
+	g_return_val_if_fail (buf, FALSE);
+	g_return_val_if_fail (length, FALSE);
+
+	return klass->link_get_permanent_address (platform, ifindex, buf, length);
 }
 
 gboolean
