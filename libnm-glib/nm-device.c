@@ -80,6 +80,7 @@ typedef struct {
 	char *firmware_version;
 	char *type_description;
 	NMDeviceCapabilities capabilities;
+	gboolean realized;
 	gboolean managed;
 	gboolean firmware_missing;
 	gboolean autoconnect;
@@ -111,6 +112,7 @@ enum {
 	PROP_DRIVER_VERSION,
 	PROP_FIRMWARE_VERSION,
 	PROP_CAPABILITIES,
+	PROP_REALIZED,
 	PROP_MANAGED,
 	PROP_AUTOCONNECT,
 	PROP_FIRMWARE_MISSING,
@@ -197,6 +199,7 @@ register_properties (NMDevice *device)
 		{ NM_DEVICE_DRIVER_VERSION,    &priv->driver_version },
 		{ NM_DEVICE_FIRMWARE_VERSION,  &priv->firmware_version },
 		{ NM_DEVICE_CAPABILITIES,      &priv->capabilities },
+		{ NM_DEVICE_REALIZED,          &priv->realized },
 		{ NM_DEVICE_MANAGED,           &priv->managed },
 		{ NM_DEVICE_AUTOCONNECT,       &priv->autoconnect },
 		{ NM_DEVICE_FIRMWARE_MISSING,  &priv->firmware_missing },
@@ -445,6 +448,9 @@ get_property (GObject *object,
 	case PROP_CAPABILITIES:
 		g_value_set_uint (value, nm_device_get_capabilities (device));
 		break;
+	case PROP_REALIZED:
+		g_value_set_boolean (value, nm_device_get_realized (device));
+		break;
 	case PROP_MANAGED:
 		g_value_set_boolean (value, nm_device_get_managed (device));
 		break;
@@ -645,6 +651,18 @@ nm_device_class_init (NMDeviceClass *device_class)
 		                    0, G_MAXUINT32, 0,
 		                    G_PARAM_READABLE |
 		                    G_PARAM_STATIC_STRINGS));
+
+	/**
+	 * NMDevice:realized:
+	 *
+	 * Whether the device is realized (eg, has backing resources).
+	 **/
+	g_object_class_install_property
+		(object_class, PROP_REALIZED,
+		 g_param_spec_boolean (NM_DEVICE_REALIZED, "", "",
+		                       FALSE,
+		                       G_PARAM_READABLE |
+		                       G_PARAM_STATIC_STRINGS));
 
 	/**
 	 * NMDevice:managed:
@@ -1195,6 +1213,26 @@ nm_device_get_capabilities (NMDevice *device)
 
 	_nm_object_ensure_inited (NM_OBJECT (device));
 	return NM_DEVICE_GET_PRIVATE (device)->capabilities;
+}
+
+/**
+ * nm_device_get_realized:
+ * @device: a #NMDevice
+ *
+ * Returns whether the device is realized or not.  Realized devices have
+ * backing resources (kernel network device or other management daemon
+ * resources), while un-realized devices do not but could create those
+ * resources if activated.
+ *
+ * Returns: %TRUE if the device is realized, %FALSE if not.
+ **/
+gboolean
+nm_device_get_realized (NMDevice *device)
+{
+	g_return_val_if_fail (NM_IS_DEVICE (device), FALSE);
+
+	_nm_object_ensure_inited (NM_OBJECT (device));
+	return NM_DEVICE_GET_PRIVATE (device)->realized;
 }
 
 /**

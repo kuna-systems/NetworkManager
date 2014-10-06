@@ -66,6 +66,7 @@ GQuark nm_device_error_quark (void);
 #define NM_DEVICE_DRIVER_VERSION "driver-version"
 #define NM_DEVICE_FIRMWARE_VERSION "firmware-version"
 #define NM_DEVICE_CAPABILITIES "capabilities"
+#define NM_DEVICE_REALIZED "realized"
 #define NM_DEVICE_MANAGED "managed"
 #define NM_DEVICE_AUTOCONNECT "autoconnect"
 #define NM_DEVICE_FIRMWARE_MISSING "firmware-missing"
@@ -126,6 +127,7 @@ const char *         nm_device_get_type_description (NMDevice *device);
 NM_AVAILABLE_IN_0_9_10
 const char *         nm_device_get_hw_address       (NMDevice *device);
 NMDeviceCapabilities nm_device_get_capabilities     (NMDevice *device);
+gboolean             nm_device_get_realized         (NMDevice *device);
 gboolean             nm_device_get_managed          (NMDevice *device);
 gboolean             nm_device_get_autoconnect      (NMDevice *device);
 void                 nm_device_set_autoconnect      (NMDevice *device, gboolean autoconnect);
