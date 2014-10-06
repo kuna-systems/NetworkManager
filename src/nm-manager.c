@@ -509,8 +509,11 @@ find_device_by_ip_iface (NMManager *self, const gchar *iface)
 	g_return_val_if_fail (iface != NULL, NULL);
 
 	for (iter = NM_MANAGER_GET_PRIVATE (self)->devices; iter; iter = g_slist_next (iter)) {
-		if (g_strcmp0 (nm_device_get_ip_iface (NM_DEVICE (iter->data)), iface) == 0)
-			return NM_DEVICE (iter->data);
+		NMDevice *candidate = iter->data;
+
+		if (   nm_device_is_real (candidate)
+		    && g_strcmp0 (nm_device_get_ip_iface (candidate), iface) == 0)
+			return candidate;
 	}
 	return NULL;
 }
@@ -867,7 +870,7 @@ find_parent_device_for_connection (NMManager *self, NMConnection *connection)
 		return NULL;
 
 	/* Try as an interface name */
-	parent = find_device_by_ip_iface (self, parent_name);
+	parent = find_device_by_iface (self, parent_name);
 	if (parent)
 		return parent;
 
@@ -2003,8 +2006,10 @@ impl_manager_get_devices (NMManager *manager, GPtrArray **devices, GError **err)
 
 	*devices = g_ptr_array_sized_new (g_slist_length (priv->devices));
 
-	for (iter = priv->devices; iter; iter = iter->next)
-		g_ptr_array_add (*devices, g_strdup (nm_device_get_path (NM_DEVICE (iter->data))));
+	for (iter = priv->devices; iter; iter = iter->next) {
+		if (nm_device_is_real (NM_DEVICE (iter->data)))
+			g_ptr_array_add (*devices, g_strdup (nm_device_get_path (NM_DEVICE (iter->data))));
+	}
 
 	return TRUE;
 }
@@ -2115,7 +2120,7 @@ find_master (NMManager *self,
 		return TRUE;  /* success, but no master */
 
 	/* Try as an interface name first */
-	master_device = find_device_by_ip_iface (self, master);
+	master_device = find_device_by_iface (self, master);
 	if (master_device) {
 		if (master_device == device) {
 			g_set_error_literal (error, NM_MANAGER_ERROR, NM_MANAGER_ERROR_DEPENDENCY_FAILED,
@@ -2867,7 +2872,7 @@ validate_activation_request (NMManager *self,
 			if (!iface)
 				goto error;
 
-			device = find_device_by_ip_iface (self, iface);
+			device = find_device_by_iface (self, iface);
 			g_free (iface);
 		}
 	}
@@ -4757,7 +4762,7 @@ get_property (GObject *object, guint prop_id,
 		array = g_ptr_array_sized_new (5);
 		for (iter = priv->devices; iter; iter = g_slist_next (iter)) {
 			path = nm_device_get_path (NM_DEVICE (iter->data));
-			if (path)
+			if (path && nm_device_is_real (NM_DEVICE (iter->data)))
 				g_ptr_array_add (array, g_strdup (path));
 		}
 		g_value_take_boxed (value, array);
