@@ -66,6 +66,10 @@ static gboolean impl_manager_get_devices (NMManager *manager,
                                           GPtrArray **devices,
                                           GError **err);
 
+static gboolean impl_manager_get_all_devices (NMManager *manager,
+                                              GPtrArray **devices,
+                                              GError **err);
+
 static gboolean impl_manager_get_device_by_ip_iface (NMManager *self,
                                                      const char *iface,
                                                      char **out_object_path,
@@ -231,6 +235,7 @@ enum {
 	PROP_PRIMARY_CONNECTION_TYPE,
 	PROP_ACTIVATING_CONNECTION,
 	PROP_DEVICES,
+	PROP_ALL_DEVICES,
 
 	/* Not exported */
 	PROP_HOSTNAME,
@@ -2016,6 +2021,20 @@ impl_manager_get_devices (NMManager *manager, GPtrArray **devices, GError **err)
 		if (nm_device_is_real (NM_DEVICE (iter->data)))
 			g_ptr_array_add (*devices, g_strdup (nm_device_get_path (NM_DEVICE (iter->data))));
 	}
+
+	return TRUE;
+}
+
+static gboolean
+impl_manager_get_all_devices (NMManager *manager, GPtrArray **devices, GError **err)
+{
+	NMManagerPrivate *priv = NM_MANAGER_GET_PRIVATE (manager);
+	GSList *iter;
+
+	*devices = g_ptr_array_sized_new (g_slist_length (priv->devices));
+
+	for (iter = priv->devices; iter; iter = iter->next)
+		g_ptr_array_add (*devices, g_strdup (nm_device_get_path (NM_DEVICE (iter->data))));
 
 	return TRUE;
 }
@@ -4756,6 +4775,15 @@ get_property (GObject *object, guint prop_id,
 		}
 		g_value_take_boxed (value, array);
 		break;
+	case PROP_ALL_DEVICES:
+		array = g_ptr_array_sized_new (10);
+		for (iter = priv->devices; iter; iter = g_slist_next (iter)) {
+			path = nm_device_get_path (NM_DEVICE (iter->data));
+			if (path)
+				g_ptr_array_add (array, g_strdup (path));
+		}
+		g_value_take_boxed (value, array);
+		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 		break;
@@ -5024,6 +5052,13 @@ nm_manager_class_init (NMManagerClass *manager_class)
 	g_object_class_install_property
 		(object_class, PROP_DEVICES,
 		 g_param_spec_boxed (NM_MANAGER_DEVICES, "", "",
+		                     DBUS_TYPE_G_ARRAY_OF_OBJECT_PATH,
+		                     G_PARAM_READABLE |
+		                     G_PARAM_STATIC_STRINGS));
+
+	g_object_class_install_property
+		(object_class, PROP_ALL_DEVICES,
+		 g_param_spec_boxed (NM_MANAGER_ALL_DEVICES, "", "",
 		                     DBUS_TYPE_G_ARRAY_OF_OBJECT_PATH,
 		                     G_PARAM_READABLE |
 		                     G_PARAM_STATIC_STRINGS));
