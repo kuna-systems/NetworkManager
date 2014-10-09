@@ -1938,11 +1938,11 @@ platform_link_added (NMManager *self,
 		if (nm_device_realize (device, plink, &error)) {
 			add_device (self, device);
 			nm_device_setup_finish (device, plink);
-			g_object_unref (device);
 		} else {
 			nm_log_warn (LOGD_DEVICE, "(%s): %s", plink->name, error->message);
 			g_clear_error (&error);
 		}
+		g_object_unref (device);
 	}
 }
 
