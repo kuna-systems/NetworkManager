@@ -1845,7 +1845,7 @@ factory_device_added_cb (NMDeviceFactory *factory,
 {
 	GError *error = NULL;
 
-	if (nm_device_realize (device, NULL, &error)) {
+	if (nm_device_realize (device, NULL, NULL, &error)) {
 		add_device (NM_MANAGER (user_data), device);
 		nm_device_setup_finish (device, NULL);
 	} else {
@@ -1910,16 +1910,28 @@ platform_link_added (NMManager *self,
 
 	device = find_device_by_iface (self, plink->name);
 	if (device) {
-		if (!nm_device_is_real (device)) {
-			if (nm_device_realize (device, plink, &error))
-				nm_device_setup_finish (device, plink);
-			else {
-				nm_log_warn (LOGD_DEVICE, "(%s): %s", plink->name, error->message);
-				g_clear_error (&error);
-				remove_device (self, device, FALSE, FALSE);
-			}
+		gboolean compatible = FALSE;
+
+		if (nm_device_is_real (device))
+			return;
+
+		if (nm_device_realize (device, plink, &compatible, &error)) {
+			/* Success */
+			nm_device_setup_finish (device, plink);
+			return;
 		}
-		return;
+
+		nm_log_warn (LOGD_DEVICE, "(%s): %s", plink->name, error->message);
+		remove_device (self, device, FALSE, FALSE);
+
+		if (compatible) {
+			/* Device compatible with platform link, but some other fatal error
+			 * happened during realization.
+			 */
+			return;
+		}
+
+		/* Fall through and create new compatible device for the link */
 	}
 
 	/* Try registered device factories */
@@ -1950,7 +1962,7 @@ platform_link_added (NMManager *self,
 	}
 
 	if (device) {
-		if (nm_device_realize (device, plink, &error)) {
+		if (nm_device_realize (device, plink, NULL, &error)) {
 			add_device (self, device);
 			nm_device_setup_finish (device, plink);
 		} else {

@@ -323,6 +323,8 @@ nm_device_infiniband_class_init (NMDeviceInfinibandClass *klass)
 
 	g_type_class_add_private (object_class, sizeof (NMDeviceInfinibandPrivate));
 
+	NM_DEVICE_CLASS_DECLARE_TYPES(klass, NULL, NM_LINK_TYPE_INFINIBAND)
+
 	/* virtual methods */
 	object_class->get_property = get_property;
 	object_class->set_property = set_property;

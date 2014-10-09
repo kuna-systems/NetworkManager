@@ -1329,6 +1329,8 @@ nm_device_wimax_class_init (NMDeviceWimaxClass *klass)
 
 	g_type_class_add_private (object_class, sizeof (NMDeviceWimaxPrivate));
 
+	NM_DEVICE_CLASS_DECLARE_TYPES(klass, NULL, NM_LINK_TYPE_WIMAX)
+
 	/* Virtual methods */
 	object_class->set_property = set_property;
 	object_class->get_property = get_property;
