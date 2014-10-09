@@ -84,9 +84,9 @@ setup (NMDevice *device, NMPlatformLink *plink)
 }
 
 static gboolean
-realize_existing (NMDevice *device,
-                  NMPlatformLink *plink,
-                  GError **error)
+realize (NMDevice *device,
+         NMPlatformLink *plink,
+         GError **error)
 {
 	NMDeviceVlanPrivate *priv = NM_DEVICE_VLAN_GET_PRIVATE (device);
 	int parent_ifindex = -1, vlan_id = -1;
@@ -125,11 +125,11 @@ realize_existing (NMDevice *device,
 }
 
 static gboolean
-realize_new (NMDevice *device,
-             NMConnection *connection,
-             NMDevice *parent,
-             NMPlatformLink *out_plink,
-             GError **error)
+create_and_realize (NMDevice *device,
+                    NMConnection *connection,
+                    NMDevice *parent,
+                    NMPlatformLink *out_plink,
+                    GError **error)
 {
 	NMDeviceVlanPrivate *priv = NM_DEVICE_VLAN_GET_PRIVATE (device);
 	const char *iface = nm_device_get_iface (device);
@@ -566,8 +566,8 @@ nm_device_vlan_class_init (NMDeviceVlanClass *klass)
 	object_class->set_property = set_property;
 	object_class->dispose = dispose;
 
-	parent_class->realize_new = realize_new;
-	parent_class->realize_existing = realize_existing;
+	parent_class->create_and_realize = create_and_realize;
+	parent_class->realize = realize;
 	parent_class->setup = setup;
 	parent_class->get_generic_capabilities = get_generic_capabilities;
 	parent_class->bring_up = bring_up;

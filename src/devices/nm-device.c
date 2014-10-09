@@ -1372,7 +1372,7 @@ check_carrier (NMDevice *self)
 }
 
 /**
- * nm_device_realize_existing():
+ * nm_device_realize():
  * @self: the #NMDevice
  * @plink: an existing platform link or %NULL
  * @error: location to store error, or %NULL
@@ -1382,11 +1382,11 @@ check_carrier (NMDevice *self)
  * Returns: %TRUE on success, %FALSE on error
  */
 gboolean
-nm_device_realize_existing (NMDevice *self, NMPlatformLink *plink, GError **error)
+nm_device_realize (NMDevice *self, NMPlatformLink *plink, GError **error)
 {
 	/* Try to realize the device from existing resources */
-	if (NM_DEVICE_GET_CLASS (self)->realize_existing) {
-		if (!NM_DEVICE_GET_CLASS (self)->realize_existing (self, plink, error))
+	if (NM_DEVICE_GET_CLASS (self)->realize) {
+		if (!NM_DEVICE_GET_CLASS (self)->realize (self, plink, error))
 			return FALSE;
 	}
 
@@ -1396,7 +1396,7 @@ nm_device_realize_existing (NMDevice *self, NMPlatformLink *plink, GError **erro
 }
 
 /**
- * nm_device_realize_new():
+ * nm_device_create_and_realize():
  * @self: the #NMDevice
  * @connection: the #NMConnection being activated
  * @parent: the parent #NMDevice if any
@@ -1408,16 +1408,16 @@ nm_device_realize_existing (NMDevice *self, NMPlatformLink *plink, GError **erro
  * Returns: %TRUE on success, %FALSE on error
  */
 gboolean
-nm_device_realize_new (NMDevice *self,
-                       NMConnection *connection,
-                       NMDevice *parent,
-                       GError **error)
+nm_device_create_and_realize (NMDevice *self,
+                              NMConnection *connection,
+                              NMDevice *parent,
+                              GError **error)
 {
 	NMPlatformLink plink = { .type = NM_LINK_TYPE_UNKNOWN };
 
 	/* Create any resources the device needs */
-	if (NM_DEVICE_GET_CLASS (self)->realize_new) {
-		if (!NM_DEVICE_GET_CLASS (self)->realize_new (self, connection, parent, &plink, error))
+	if (NM_DEVICE_GET_CLASS (self)->create_and_realize) {
+		if (!NM_DEVICE_GET_CLASS (self)->create_and_realize (self, connection, parent, &plink, error))
 			return FALSE;
 	}
 

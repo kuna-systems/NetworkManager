@@ -103,28 +103,28 @@ typedef struct {
 	void            (* link_changed) (NMDevice *self, NMPlatformLink *info);
 
 	/**
-	 * realize_existing():
+	 * realize():
 	 * @self: the #NMDevice
 	 * @plink: the #NMPlatformLink if backed by a kernel netdevice
 	 * @error: location to store error, or %NULL
 	 *
-	 * Try to realize the device from existing backing resources.  No resources
+	 * Realize the device from existing backing resources.  No resources
 	 * should be created as a side-effect of this function.  This function
 	 * should only fail if critical device properties/resources (eg, VLAN ID)
 	 * fail to be read or initialized, that would cause the device to be
 	 * unusable.  For example, for any properties required to realize the device
-	 * during realize_new(), if reading those properties in realize_existing()
+	 * during create_and_realize(), if reading those properties in realize()
 	 * should fail, this function should probably return %FALSE and an error.
 	 *
 	 * Returns: %TRUE on success, %FALSE if some error ocurred when realizing
 	 * the device from backing resources
 	 */
-	gboolean        (*realize_existing) (NMDevice *self,
-	                                     NMPlatformLink *plink,
-	                                     GError **error);
+	gboolean        (*realize) (NMDevice *self,
+	                            NMPlatformLink *plink,
+	                            GError **error);
 
 	/**
-	 * realize_new():
+	 * create_and_realize():
 	 * @self: the #NMDevice
 	 * @connection: the #NMConnection being activated
 	 * @parent: the parent #NMDevice, if any
@@ -138,11 +138,11 @@ typedef struct {
 	 *
 	 * Returns: %TRUE on success, %FALSE on error
 	 */
-	gboolean        (*realize_new) (NMDevice *self,
-	                                NMConnection *connection,
-	                                NMDevice *parent,
-	                                NMPlatformLink *out_plink,
-	                                GError **error);
+	gboolean        (*create_and_realize) (NMDevice *self,
+	                                       NMConnection *connection,
+	                                       NMDevice *parent,
+	                                       NMPlatformLink *out_plink,
+	                                       GError **error);
 
 	/**
 	 * setup():
@@ -394,13 +394,13 @@ void nm_device_set_initial_unmanaged_flag (NMDevice *device,
 gboolean nm_device_get_is_nm_owned (NMDevice *device);
 void     nm_device_set_nm_owned    (NMDevice *device);
 
-gboolean nm_device_realize_existing (NMDevice *device,
-                                     NMPlatformLink *plink,
-                                     GError **error);
-gboolean nm_device_realize_new      (NMDevice *self,
-                                     NMConnection *connection,
-                                     NMDevice *parent,
-                                     GError **error);
+gboolean nm_device_realize            (NMDevice *device,
+                                       NMPlatformLink *plink,
+                                       GError **error);
+gboolean nm_device_create_and_realize (NMDevice *self,
+                                       NMConnection *connection,
+                                       NMDevice *parent,
+                                       GError **error);
 
 gboolean nm_device_get_autoconnect (NMDevice *device);
 

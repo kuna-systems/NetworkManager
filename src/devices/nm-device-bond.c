@@ -465,11 +465,11 @@ release_slave (NMDevice *device,
 }
 
 static gboolean
-realize_new (NMDevice *device,
-             NMConnection *connection,
-             NMDevice *parent,
-             NMPlatformLink *out_plink,
-             GError **error)
+create_and_realize (NMDevice *device,
+                    NMConnection *connection,
+                    NMDevice *parent,
+                    NMPlatformLink *out_plink,
+                    GError **error)
 {
 	const char *iface = nm_device_get_iface (device);
 
@@ -551,7 +551,7 @@ nm_device_bond_class_init (NMDeviceBondClass *klass)
 	parent_class->update_connection = update_connection;
 	parent_class->master_update_slave_connection = master_update_slave_connection;
 
-	parent_class->realize_new = realize_new;
+	parent_class->create_and_realize = create_and_realize;
 	parent_class->act_stage1_prepare = act_stage1_prepare;
 	parent_class->ip4_config_pre_commit = ip4_config_pre_commit;
 	parent_class->enslave_slave = enslave_slave;

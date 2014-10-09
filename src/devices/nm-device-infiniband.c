@@ -236,11 +236,11 @@ update_connection (NMDevice *device, NMConnection *connection)
 }
 
 static gboolean
-realize_new (NMDevice *device,
-             NMConnection *connection,
-             NMDevice *parent,
-             NMPlatformLink *out_plink,
-             GError **error)
+create_and_realize (NMDevice *device,
+                    NMConnection *connection,
+                    NMDevice *parent,
+                    NMPlatformLink *out_plink,
+                    GError **error)
 {
 	NMSettingInfiniband *s_infiniband;
 	int parent_ifindex, p_key;
@@ -319,7 +319,7 @@ nm_device_infiniband_class_init (NMDeviceInfinibandClass *klass)
 	object_class->get_property = get_property;
 	object_class->set_property = set_property;
 
-	parent_class->realize_new = realize_new;
+	parent_class->create_and_realize = create_and_realize;
 	parent_class->get_generic_capabilities = get_generic_capabilities;
 	parent_class->check_connection_compatible = check_connection_compatible;
 	parent_class->complete_connection = complete_connection;
