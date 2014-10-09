@@ -108,11 +108,6 @@ realize (NMDevice *device,
 
 	parent = nm_manager_get_device_by_ifindex (nm_manager_get (), parent_ifindex);
 	if (!parent) {
-		/* If the platform signaled the VLAN interface before it signaled
-		 * the VLAN's parent at startup we may not know about the
-		 * parent device yet.  But we'll find it on the second pass
-		 * from nm_manager_start().
-		 */
 		nm_log_dbg (LOGD_HW, "(%s): VLAN parent interface unknown", plink->name);
 		return FALSE;
 	}
