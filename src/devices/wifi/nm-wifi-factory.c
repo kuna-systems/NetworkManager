@@ -67,9 +67,9 @@ create_device (NMDeviceFactory *factory,
 	g_return_val_if_fail (plink != NULL, NULL);
 
 	if (plink->type == NM_LINK_TYPE_WIFI)
-		return nm_device_wifi_new (plink->name);
+		return nm_device_wifi_new (iface);
 	else if (plink->type == NM_LINK_TYPE_OLPC_MESH)
-		return nm_device_olpc_mesh_new (plink->name);
+		return nm_device_olpc_mesh_new (iface);
 	return NULL;
 }
 

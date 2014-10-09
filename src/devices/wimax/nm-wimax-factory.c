@@ -69,7 +69,7 @@ create_device (NMDeviceFactory *factory,
 	if (g_strcmp0 (plink->driver, "i2400m_usb") != 0)
 		return NULL;  /* unsupported */
 
-	return (NMDevice *) nm_device_wimax_new (plink->name);
+	return (NMDevice *) nm_device_wimax_new (iface);
 }
 
 NM_DEVICE_FACTORY_DECLARE_TYPES (
