@@ -1682,7 +1682,7 @@ device_realized (NMDevice *device, GParamSpec *pspec, NMSettings *self)
 	NMSettingsConnection *added;
 	GError *error = NULL;
 
-	if (!nm_device_is_realized (device))
+	if (!nm_device_is_real (device))
 		return;
 
 	/* If the device isn't managed or it already has a default wired connection,
@@ -1725,10 +1725,10 @@ device_realized (NMDevice *device, GParamSpec *pspec, NMSettings *self)
 void
 nm_settings_device_added (NMSettings *self, NMDevice *device)
 {
-	if (nm_device_is_realized (device))
+	if (nm_device_is_real (device))
 		device_realized (device, NULL, self);
 	else {
-		g_signal_connect_after (device, "notify::" NM_DEVICE_REALIZED,
+		g_signal_connect_after (device, "notify::" NM_DEVICE_REAL,
 		                        G_CALLBACK (device_realized),
 		                        self);
 	}

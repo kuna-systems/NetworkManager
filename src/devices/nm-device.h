@@ -58,7 +58,7 @@
 #define NM_DEVICE_PHYSICAL_PORT_ID "physical-port-id"
 #define NM_DEVICE_MTU              "mtu"
 #define NM_DEVICE_HW_ADDRESS       "hw-address"
-#define NM_DEVICE_REALIZED         "realized"
+#define NM_DEVICE_REAL             "real"
 
 #define NM_DEVICE_TYPE_DESC        "type-desc"      /* Internal only */
 #define NM_DEVICE_RFKILL_TYPE      "rfkill-type"    /* Internal only */
@@ -282,7 +282,7 @@ const char *	nm_device_get_udi		(NMDevice *dev);
 const char *	nm_device_get_iface		(NMDevice *dev);
 int             nm_device_get_ifindex	(NMDevice *dev);
 gboolean        nm_device_is_software   (NMDevice *dev);
-gboolean        nm_device_is_realized   (NMDevice *dev);
+gboolean        nm_device_is_real       (NMDevice *dev);
 const char *	nm_device_get_ip_iface	(NMDevice *dev);
 int             nm_device_get_ip_ifindex(NMDevice *dev);
 const char *	nm_device_get_driver	(NMDevice *dev);
