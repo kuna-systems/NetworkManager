@@ -208,7 +208,6 @@ global:
 	nm_device_get_mtu;
 	nm_device_get_physical_port_id;
 	nm_device_get_product;
-	nm_device_get_realized;
 	nm_device_get_setting_type;
 	nm_device_get_state;
 	nm_device_get_state_reason;
@@ -219,6 +218,7 @@ global:
 	nm_device_infiniband_get_carrier;
 	nm_device_infiniband_get_hw_address;
 	nm_device_infiniband_get_type;
+	nm_device_is_real;
 	nm_device_is_software;
 	nm_device_modem_capabilities_get_type;
 	nm_device_modem_get_current_capabilities;

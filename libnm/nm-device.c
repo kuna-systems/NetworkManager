@@ -82,7 +82,7 @@ typedef struct {
 	char *firmware_version;
 	char *type_description;
 	NMDeviceCapabilities capabilities;
-	gboolean realized;
+	gboolean real;
 	gboolean managed;
 	gboolean firmware_missing;
 	gboolean autoconnect;
@@ -114,7 +114,7 @@ enum {
 	PROP_DRIVER_VERSION,
 	PROP_FIRMWARE_VERSION,
 	PROP_CAPABILITIES,
-	PROP_REALIZED,
+	PROP_REAL,
 	PROP_MANAGED,
 	PROP_AUTOCONNECT,
 	PROP_FIRMWARE_MISSING,
@@ -182,7 +182,7 @@ init_dbus (NMObject *object)
 		{ NM_DEVICE_DRIVER_VERSION,    &priv->driver_version },
 		{ NM_DEVICE_FIRMWARE_VERSION,  &priv->firmware_version },
 		{ NM_DEVICE_CAPABILITIES,      &priv->capabilities },
-		{ NM_DEVICE_REALIZED,          &priv->realized },
+		{ NM_DEVICE_REAL,              &priv->real },
 		{ NM_DEVICE_MANAGED,           &priv->managed },
 		{ NM_DEVICE_AUTOCONNECT,       &priv->autoconnect },
 		{ NM_DEVICE_FIRMWARE_MISSING,  &priv->firmware_missing },
@@ -407,8 +407,8 @@ get_property (GObject *object,
 	case PROP_CAPABILITIES:
 		g_value_set_flags (value, nm_device_get_capabilities (device));
 		break;
-	case PROP_REALIZED:
-		g_value_set_boolean (value, nm_device_get_realized (device));
+	case PROP_REAL:
+		g_value_set_boolean (value, nm_device_is_real (device));
 		break;
 	case PROP_MANAGED:
 		g_value_set_boolean (value, nm_device_get_managed (device));
@@ -615,13 +615,15 @@ nm_device_class_init (NMDeviceClass *device_class)
 		                     G_PARAM_STATIC_STRINGS));
 
 	/**
-	 * NMDevice:realized:
+	 * NMDevice:real:
 	 *
-	 * Whether the device is realized (eg, has backing resources).
+	 * Whether the device is real or is a placeholder device that could
+	 * be created automatically by NetworkManager if one of its
+	 * #NMDevice:available-connections was activated.
 	 **/
 	g_object_class_install_property
-		(object_class, PROP_REALIZED,
-		 g_param_spec_boolean (NM_DEVICE_REALIZED, "", "",
+		(object_class, PROP_REAL,
+		 g_param_spec_boolean (NM_DEVICE_REAL, "", "",
 		                       FALSE,
 		                       G_PARAM_READABLE |
 		                       G_PARAM_STATIC_STRINGS));
@@ -1050,25 +1052,6 @@ nm_device_get_capabilities (NMDevice *device)
 	g_return_val_if_fail (NM_IS_DEVICE (device), 0);
 
 	return NM_DEVICE_GET_PRIVATE (device)->capabilities;
-}
-
-/**
- * nm_device_get_realized:
- * @device: a #NMDevice
- *
- * Returns whether the device is realized or not.  Realized devices have
- * backing resources (kernel network device or other management daemon
- * resources), while un-realized devices do not but could create those
- * resources if activated.
- *
- * Returns: %TRUE if the device is realized, %FALSE if not.
- **/
-gboolean
-nm_device_get_realized (NMDevice *device)
-{
-	g_return_val_if_fail (NM_IS_DEVICE (device), FALSE);
-
-	return NM_DEVICE_GET_PRIVATE (device)->realized;
 }
 
 /**
@@ -1915,6 +1898,22 @@ nm_device_get_mtu (NMDevice *device)
 	g_return_val_if_fail (NM_IS_DEVICE (device), 0);
 
 	return NM_DEVICE_GET_PRIVATE (device)->mtu;
+}
+
+/**
+ * nm_device_is_real:
+ * @device: a #NMDevice
+ *
+ * Returns: %TRUE if the device exists, or %FALSE if it is a placeholder device
+ * that could be automatically created by NetworkManager if one of its
+ * #NMDevice:available-connections was activated.
+ **/
+gboolean
+nm_device_is_real (NMDevice *device)
+{
+	g_return_val_if_fail (NM_IS_DEVICE (device), FALSE);
+
+	return NM_DEVICE_GET_PRIVATE (device)->real;
 }
 
 /**
