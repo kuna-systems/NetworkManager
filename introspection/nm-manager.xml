@@ -11,9 +11,8 @@
       <annotation name="org.freedesktop.DBus.GLib.CSymbol" value="impl_manager_get_devices"/>
       <arg name="devices" type="ao" direction="out">
         <tp:docstring>
-          List of object paths of realized network devices known to the system.
-          Realized devices are those which have backing resources (eg from the
-          kernel or a management daemon like ModemManager, teamd, etc).
+          List of object paths of network devices known to the system.  This
+          list does not include device placeholders (see GetAllDevices()).
         </tp:docstring>
       </arg>
     </method>
@@ -25,10 +24,10 @@
       <annotation name="org.freedesktop.DBus.GLib.CSymbol" value="impl_manager_get_all_devices"/>
       <arg name="devices" type="ao" direction="out">
         <tp:docstring>
-          List of object paths of realized and un-realized network devices
-          known to the system.  Unrealized devices are software devices which
-          do not yet have backing resources, but for which backing resources
-          can be created if the device is activated.
+          List of object paths of network devices and device placeholders
+          (eg, devices that do not yet exist but which can be automatically
+          created by NetworkManager if one of their AvailableConnections
+          was activated).
         </tp:docstring>
       </arg>
     </method>
