@@ -289,8 +289,8 @@ new_link (NMDeviceFactory *factory, NMPlatformLink *plink, GError **error)
 	                                  NULL);
 }
 
-DEFINE_DEVICE_FACTORY_INTERNAL      (TUN, Tun, tun,
-	DEFINE_FACTORY_LINK_TYPES    (NM_LINK_TYPE_TUN, NM_LINK_TYPE_TAP),
+NM_DEVICE_FACTORY_DEFINE_INTERNAL (TUN, Tun, tun,
+	NM_DEVICE_FACTORY_DECLARE_LINK_TYPES    (NM_LINK_TYPE_TUN, NM_LINK_TYPE_TAP),
 	factory_iface->new_link = new_link;
 	)
 

@@ -365,8 +365,8 @@ new_link (NMDeviceFactory *factory, NMPlatformLink *plink, GError **error)
 	return NULL;
 }
 
-DEFINE_DEVICE_FACTORY_INTERNAL      (VXLAN, Vxlan, vxlan,
-	DEFINE_FACTORY_LINK_TYPES    (NM_LINK_TYPE_VXLAN),
+NM_DEVICE_FACTORY_DEFINE_INTERNAL (VXLAN, Vxlan, vxlan,
+	NM_DEVICE_FACTORY_DECLARE_LINK_TYPES    (NM_LINK_TYPE_VXLAN),
 	factory_iface->new_link = new_link;
 	)
 

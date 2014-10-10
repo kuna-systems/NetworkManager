@@ -369,8 +369,8 @@ start (NMDeviceFactory *factory)
 	check_bluez_and_try_setup (NM_BLUEZ_MANAGER (factory));
 }
 
-DEFINE_DEVICE_FACTORY_SUPPORTED_TYPES (
-	DEFINE_FACTORY_SETTING_TYPES (NM_SETTING_BLUETOOTH_SETTING_NAME)
+NM_DEVICE_FACTORY_DECLARE_TYPES (
+	NM_DEVICE_FACTORY_DECLARE_SETTING_TYPES (NM_SETTING_BLUETOOTH_SETTING_NAME)
 )
 
 /*********************************************************************/

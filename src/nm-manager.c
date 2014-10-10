@@ -26,8 +26,6 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <dbus/dbus-glib-lowlevel.h>
 #include <dbus/dbus-glib.h>
 #include <gio/gio.h>
@@ -142,13 +140,6 @@ static gboolean find_master (NMManager *self,
                              GError **error);
 
 static void nm_manager_update_state (NMManager *manager);
-
-static NMDeviceFactory *find_device_factory_for_types (NMManager *self,
-                                                       const NMLinkType *needle_link_types,
-                                                       const char **needle_setting_types);
-
-static NMDeviceFactory *find_device_factory_for_connection (NMManager *self,
-                                                            NMConnection *connection);
 
 #define SSD_POKE_INTERVAL 120
 #define ORIGDEV_TAG "originating-device"
@@ -1075,7 +1066,7 @@ system_create_virtual_device (NMManager *self, NMConnection *connection, GError 
 		}
 	}
 
-	factory = find_device_factory_for_connection (self, connection);
+	factory = nm_device_factory_manager_find_factory_for_connection (connection);
 	if (!factory) {
 		nm_log_err (LOGD_DEVICE, "(%s:%s) NetworkManager plugin for '%s' unavailable",
 		            nm_connection_get_id (connection), iface,
@@ -1924,173 +1915,10 @@ factory_component_added_cb (NMDeviceFactory *factory,
 	return FALSE;
 }
 
-#define PLUGIN_PREFIX "libnm-device-plugin-"
-#define PLUGIN_PATH_TAG "NMManager-plugin-path"
-
-struct read_device_factory_paths_data {
-	char *path;
-	struct stat st;
-};
-
-static gint
-read_device_factory_paths_sort_fcn (gconstpointer a, gconstpointer b)
+static void
+_register_device_factory (NMDeviceFactory *factory, gpointer user_data)
 {
-	const struct read_device_factory_paths_data *da = a;
-	const struct read_device_factory_paths_data *db = b;
-	time_t ta, tb;
-
-	ta = MAX (da->st.st_mtime, da->st.st_ctime);
-	tb = MAX (db->st.st_mtime, db->st.st_ctime);
-
-	if (ta < tb)
-		return 1;
-	if (ta > tb)
-		return -1;
-	return 0;
-}
-
-static char**
-read_device_factory_paths (void)
-{
-	GDir *dir;
-	GError *error = NULL;
-	const char *item;
-	GArray *paths;
-	char **result;
-	guint i;
-
-	dir = g_dir_open (NMPLUGINDIR, 0, &error);
-	if (!dir) {
-		nm_log_warn (LOGD_HW, "device plugin: failed to open directory %s: %s",
-		             NMPLUGINDIR,
-		             (error && error->message) ? error->message : "(unknown)");
-		g_clear_error (&error);
-		return NULL;
-	}
-
-	paths = g_array_new (FALSE, FALSE, sizeof (struct read_device_factory_paths_data));
-
-	while ((item = g_dir_read_name (dir))) {
-		int errsv;
-		struct read_device_factory_paths_data data;
-
-		if (!g_str_has_prefix (item, PLUGIN_PREFIX))
-			continue;
-		if (g_str_has_suffix (item, ".la"))
-			continue;
-
-		data.path = g_build_filename (NMPLUGINDIR, item, NULL);
-
-		if (stat (data.path, &data.st) != 0) {
-			errsv = errno;
-			nm_log_warn (LOGD_HW, "device plugin: skip invalid file %s (error during stat: %s)", data.path, strerror (errsv));
-			goto NEXT;
-		}
-		if (!S_ISREG (data.st.st_mode))
-			goto NEXT;
-		if (data.st.st_uid != 0) {
-			nm_log_warn (LOGD_HW, "device plugin: skip invalid file %s (file must be owned by root)", data.path);
-			goto NEXT;
-		}
-		if (data.st.st_mode & (S_IWGRP | S_IWOTH | S_ISUID)) {
-			nm_log_warn (LOGD_HW, "device plugin: skip invalid file %s (invalid file permissions)", data.path);
-			goto NEXT;
-		}
-
-		g_array_append_val (paths, data);
-		continue;
-NEXT:
-		g_free (data.path);
-	}
-	g_dir_close (dir);
-
-	/* sort filenames by modification time. */
-	g_array_sort (paths, read_device_factory_paths_sort_fcn);
-
-	result = g_new (char *, paths->len + 1);
-	for (i = 0; i < paths->len; i++)
-		result[i] = g_array_index (paths, struct read_device_factory_paths_data, i).path;
-	result[i] = NULL;
-
-	g_array_free (paths, TRUE);
-	return result;
-}
-
-static NMDeviceFactory *
-find_device_factory_for_types (NMManager *self,
-                               const NMLinkType *needle_link_types,
-                               const char **needle_setting_types)
-{
-	NMManagerPrivate *priv = NM_MANAGER_GET_PRIVATE (self);
-	GSList *iter;
-
-	for (iter = priv->factories; iter; iter = iter->next) {
-		const NMLinkType *haystack_link_types = NULL;
-		const char **haystack_setting_types = NULL;
-		guint i, n;
-
-		nm_device_factory_get_supported_types (NM_DEVICE_FACTORY (iter->data),
-		                                       &haystack_link_types,
-		                                       &haystack_setting_types);
-		/* Search for each link type from 'a' in 'b' */
-		if (needle_link_types && haystack_link_types) {
-			for (i = 0; needle_link_types[i] > NM_LINK_TYPE_UNKNOWN; i++) {
-				for (n = 0; haystack_link_types[n] > NM_LINK_TYPE_UNKNOWN; n++) {
-					if (needle_link_types[i] == haystack_link_types[n])
-						return NM_DEVICE_FACTORY (iter->data);
-				}
-			}
-		}
-
-		/* Search for each setting type from 'a' in 'b' */
-		if (needle_setting_types && haystack_setting_types) {
-			for (i = 0; needle_setting_types[i]; i++) {
-				for (n = 0; haystack_setting_types[n]; n++) {
-					if (g_strcmp0 (needle_setting_types[i], haystack_setting_types[n]) == 0)
-						return NM_DEVICE_FACTORY (iter->data);
-				}
-			}
-		}
-	}
-
-	return NULL;
-}
-
-static NMDeviceFactory *
-find_device_factory_for_connection (NMManager *self, NMConnection *connection)
-{
-	const char *stypes[2] = { nm_connection_get_connection_type (connection), NULL };
-
-	g_assert (stypes[0]);
-	return find_device_factory_for_types (self, NULL, stypes);
-}
-
-static gboolean
-_register_device_factory (NMManager *self,
-                          NMDeviceFactory *factory,
-                          gboolean duplicate_check,
-                          const char *path,
-                          GError **error)
-{
-	NMManagerPrivate *priv = NM_MANAGER_GET_PRIVATE (self);
-
-	if (duplicate_check) {
-		NMDeviceFactory *found = NULL;
-		const NMLinkType *link_types = NULL;
-		const char **setting_types = NULL;
-
-		nm_device_factory_get_supported_types (factory, &link_types, &setting_types);
-		found = find_device_factory_for_types (self, link_types, setting_types);
-		if (found) {
-			g_set_error (error, NM_MANAGER_ERROR, NM_MANAGER_ERROR_FAILED,
-			             "multiple plugins for same type (using '%s' instead of '%s')",
-			             (char *) g_object_get_data (G_OBJECT (found), PLUGIN_PATH_TAG),
-			             path);
-			return FALSE;
-		}
-	}
-
-	priv->factories = g_slist_append (priv->factories, factory);
+	NMManager *self = NM_MANAGER (user_data);
 
 	g_signal_connect (factory,
 	                  NM_DEVICE_FACTORY_DEVICE_ADDED,
@@ -2100,80 +1928,6 @@ _register_device_factory (NMManager *self,
 	                  NM_DEVICE_FACTORY_COMPONENT_ADDED,
 	                  G_CALLBACK (factory_component_added_cb),
 	                  self);
-	g_object_set_data_full (G_OBJECT (factory), PLUGIN_PATH_TAG,
-	                        g_strdup (path), g_free);
-	return TRUE;
-}
-
-static void
-load_device_factories (NMManager *self)
-{
-	NMDeviceFactory *factory;
-	const GSList *iter;
-	GError *error = NULL;
-	char **path, **paths;
-
-	/* Register internal factories first */
-	for (iter = nm_device_factory_get_internal_factory_types (); iter; iter = iter->next) {
-		GType ftype = (GType) GPOINTER_TO_SIZE (iter->data);
-
-		factory = (NMDeviceFactory *) g_object_new (ftype, NULL);
-		g_assert (factory);
-		if (_register_device_factory (self, factory, FALSE, "internal", &error)) {
-			nm_log_dbg (LOGD_HW, "Loaded device plugin: %s", g_type_name (ftype));
-		} else {
-			nm_log_warn (LOGD_HW, "Loading device plugin failed: %s", error->message);
-			g_object_unref (factory);
-			g_clear_error (&error);
-		}
-	}
-
-	paths = read_device_factory_paths ();
-	if (!paths)
-		return;
-
-	for (path = paths; *path; path++) {
-		GModule *plugin;
-		NMDeviceFactoryCreateFunc create_func;
-		const char *item;
-
-		item = strrchr (*path, '/');
-		g_assert (item);
-
-		plugin = g_module_open (*path, G_MODULE_BIND_LOCAL);
-
-		if (!plugin) {
-			nm_log_warn (LOGD_HW, "(%s): failed to load plugin: %s", item, g_module_error ());
-			continue;
-		}
-
-		if (!g_module_symbol (plugin, "nm_device_factory_create", (gpointer) &create_func)) {
-			nm_log_warn (LOGD_HW, "(%s): failed to find device factory creator: %s", item, g_module_error ());
-			g_module_close (plugin);
-			continue;
-		}
-
-		factory = create_func (&error);
-		if (!factory) {
-			nm_log_warn (LOGD_HW, "(%s): failed to initialize device factory: %s",
-			             item, error ? error->message : "unknown");
-			g_clear_error (&error);
-			g_module_close (plugin);
-			continue;
-		}
-		g_clear_error (&error);
-
-		if (_register_device_factory (self, factory, TRUE, g_module_name (plugin), &error)) {
-			nm_log_info (LOGD_HW, "Loaded device plugin: %s", g_module_name (plugin));
-			g_module_make_resident (plugin);
-		} else {
-			nm_log_warn (LOGD_HW, "Loading device plugin failed: %s", error->message);
-			g_object_unref (factory);
-			g_module_close (plugin);
-			g_clear_error (&error);
-		}
-	}
-	g_strfreev (paths);
 }
 
 /*******************************************************************/
@@ -2205,7 +1959,7 @@ platform_link_added (NMManager *self,
 		return;
 
 	/* Try registered device factories */
-	factory = find_device_factory_for_types (self, ltypes, NULL);
+	factory = nm_device_factory_manager_find_factory (ltypes, NULL);
 	if (factory) {
 		device = nm_device_factory_new_link (factory, plink, &error);
 		if (device && NM_IS_DEVICE (device)) {
@@ -4854,7 +4608,7 @@ nm_manager_new (NMSettings *settings,
 	rfkill_change (priv->radio_states[RFKILL_TYPE_WLAN].desc, RFKILL_TYPE_WLAN, initial_wifi_enabled);
 	rfkill_change (priv->radio_states[RFKILL_TYPE_WWAN].desc, RFKILL_TYPE_WWAN, initial_wwan_enabled);
 
-	load_device_factories (singleton);
+	nm_device_factory_manager_load_factories (_register_device_factory, singleton);
 
 	return singleton;
 }
