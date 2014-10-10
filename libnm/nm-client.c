@@ -73,6 +73,7 @@ enum {
 	PROP_PRIMARY_CONNECTION,
 	PROP_ACTIVATING_CONNECTION,
 	PROP_DEVICES,
+	PROP_ALL_DEVICES,
 	PROP_CONNECTIONS,
 	PROP_HOSTNAME,
 	PROP_CAN_MODIFY,
@@ -716,6 +717,32 @@ nm_client_get_devices (NMClient *client)
 	g_return_val_if_fail (NM_IS_CLIENT (client), NULL);
 
 	return nm_manager_get_devices (NM_CLIENT_GET_PRIVATE (client)->manager);
+}
+
+/**
+ * nm_client_get_all_devices:
+ * @client: a #NMClient
+ *
+ * Gets both real devices and device placeholders (eg, software devices which
+ * do not currently exist, but could be created automatically by NetworkManager
+ * if one of their NMDevice::ActivatableConnections was activated).  Use
+ * nm_device_is_real() to determine whether each device is a real device or
+ * a placeholder.
+ *
+ * Use nm_device_get_type() or the NM_IS_DEVICE_XXXX() functions to determine
+ * what kind of device each member of the returned array is, and then you may
+ * use device-specific methods such as nm_device_ethernet_get_hw_address().
+ *
+ * Returns: (transfer none) (element-type NMDevice): a #GPtrArray
+ * containing all the #NMDevices.  The returned array is owned by the
+ * #NMClient object and should not be modified.
+ **/
+const GPtrArray *
+nm_client_get_all_devices (NMClient *client)
+{
+	g_return_val_if_fail (NM_IS_CLIENT (client), NULL);
+
+	return nm_manager_get_all_devices (NM_CLIENT_GET_PRIVATE (client)->manager);
 }
 
 /**
@@ -1871,6 +1898,7 @@ get_property (GObject *object, guint prop_id,
 	case PROP_PRIMARY_CONNECTION:
 	case PROP_ACTIVATING_CONNECTION:
 	case PROP_DEVICES:
+	case PROP_ALL_DEVICES:
 		g_object_get_property (G_OBJECT (NM_CLIENT_GET_PRIVATE (object)->manager),
 		                       pspec->name, value);
 		break;
@@ -2090,13 +2118,27 @@ nm_client_class_init (NMClientClass *client_class)
 	/**
 	 * NMClient:devices:
 	 *
-	 * List of known network devices.
+	 * List of real network devices.  Does not include placeholder devices.
 	 *
 	 * Element-type: NMDevice
 	 **/
 	g_object_class_install_property
 		(object_class, PROP_DEVICES,
 		 g_param_spec_boxed (NM_CLIENT_DEVICES, "", "",
+		                     G_TYPE_PTR_ARRAY,
+		                     G_PARAM_READABLE |
+		                     G_PARAM_STATIC_STRINGS));
+
+	/**
+	 * NMClient:all-devices:
+	 *
+	 * List of both real devices and device placeholders.
+	 *
+	 * Element-type: NMDevice
+	 **/
+	g_object_class_install_property
+		(object_class, PROP_ALL_DEVICES,
+		 g_param_spec_boxed (NM_CLIENT_ALL_DEVICES, "", "",
 		                     G_TYPE_PTR_ARRAY,
 		                     G_PARAM_READABLE |
 		                     G_PARAM_STATIC_STRINGS));

@@ -59,6 +59,7 @@ typedef struct {
 	NMState state;
 	gboolean startup;
 	GPtrArray *devices;
+	GPtrArray *all_devices;
 	GPtrArray *active_connections;
 	NMConnectivityState connectivity;
 	NMActiveConnection *primary_connection;
@@ -101,6 +102,7 @@ enum {
 	PROP_PRIMARY_CONNECTION,
 	PROP_ACTIVATING_CONNECTION,
 	PROP_DEVICES,
+	PROP_ALL_DEVICES,
 
 	LAST_PROP
 };
@@ -160,8 +162,8 @@ poke_wireless_devices_with_rf_status (NMClient *client)
 	NMClientPrivate *priv = NM_CLIENT_GET_PRIVATE (client);
 	int i;
 
-	for (i = 0; priv->devices && (i < priv->devices->len); i++) {
-		NMDevice *device = g_ptr_array_index (priv->devices, i);
+	for (i = 0; priv->all_devices && (i < priv->all_devices->len); i++) {
+		NMDevice *device = g_ptr_array_index (priv->all_devices, i);
 
 		if (NM_IS_DEVICE_WIFI (device))
 			_nm_device_wifi_set_wireless_enabled (NM_DEVICE_WIFI (device), priv->wireless_enabled);
@@ -194,6 +196,7 @@ register_properties (NMClient *client)
 		{ NM_CLIENT_PRIMARY_CONNECTION,        &priv->primary_connection, NULL, NM_TYPE_ACTIVE_CONNECTION },
 		{ NM_CLIENT_ACTIVATING_CONNECTION,     &priv->activating_connection, NULL, NM_TYPE_ACTIVE_CONNECTION },
 		{ NM_CLIENT_DEVICES,                   &priv->devices, NULL, NM_TYPE_DEVICE, "device" },
+		{ NM_CLIENT_ALL_DEVICES,               &priv->all_devices, NULL, NM_TYPE_DEVICE, "device" },
 		{ NULL },
 	};
 
@@ -376,6 +379,32 @@ nm_client_get_devices (NMClient *client)
 	_nm_object_ensure_inited (NM_OBJECT (client));
 
 	return handle_ptr_array_return (NM_CLIENT_GET_PRIVATE (client)->devices);
+}
+
+/**
+ * nm_client_get_all_devices:
+ * @client: a #NMClient
+ *
+ * Gets both real devices and device placeholders (eg, software devices which
+ * do not currently exist, but could be created automatically by NetworkManager
+ * if one of their NMDevice::ActivatableConnections was activated).  Use
+ * nm_device_is_real() to determine whether each device is a real device or
+ * a placeholder.
+ *
+ * Use nm_device_get_type() or the NM_IS_DEVICE_XXXX() functions to determine
+ * what kind of device each member of the returned array is, and then you may
+ * use device-specific methods such as nm_device_ethernet_get_hw_address().
+ *
+ * Returns: (transfer none) (element-type NMDevice): a #GPtrArray
+ * containing all the #NMDevices.  The returned array is owned by the
+ * #NMClient object and should not be modified.
+ **/
+const GPtrArray *
+nm_client_get_all_devices (NMClient *client)
+{
+	g_return_val_if_fail (NM_IS_CLIENT (client), NULL);
+
+	return NM_CLIENT_GET_PRIVATE (client)->all_devices;
 }
 
 /**
@@ -1293,21 +1322,33 @@ free_devices (NMClient *client, gboolean emit_signals)
 {
 	NMClientPrivate *priv = NM_CLIENT_GET_PRIVATE (client);
 	GPtrArray *devices;
-	NMDevice *device;
 	int i;
 
-	if (!priv->devices)
-		return;
-
-	devices = priv->devices;
-	priv->devices = NULL;
-	for (i = 0; i < devices->len; i++) {
-		device = devices->pdata[i];
-		if (emit_signals)
-			g_signal_emit (client, signals[DEVICE_REMOVED], 0, device);
-		g_object_unref (device);
+	if (priv->devices) {
+		devices = priv->devices;
+		priv->devices = NULL;
+		for (i = 0; i < devices->len; i++)
+			g_object_unref (G_OBJECT (devices->pdata[i]));
+		g_ptr_array_free (devices, TRUE);
 	}
-	g_ptr_array_free (devices, TRUE);
+
+	if (priv->all_devices) {
+		devices = priv->all_devices;
+		priv->all_devices = NULL;
+
+		/* "all_devices" is a superset of "devices", so we signalling
+		 * REMOVED for "all_devices" ensures we signal for anything in
+		 * "devices" too.
+		 */
+		for (i = 0; i < devices->len; i++) {
+			NMDevice *device = devices->pdata[i];
+
+			if (emit_signals)
+				g_signal_emit (client, signals[DEVICE_REMOVED], 0, device);
+			g_object_unref (device);
+		}
+		g_ptr_array_free (devices, TRUE);
+	}
 }
 
 static void
@@ -2114,6 +2155,9 @@ get_property (GObject *object,
 	case PROP_DEVICES:
 		g_value_set_boxed (value, nm_client_get_devices (self));
 		break;
+	case PROP_ALL_DEVICES:
+		g_value_take_boxed (value, nm_client_get_all_devices (self));
+		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 		break;
@@ -2331,13 +2375,27 @@ nm_client_class_init (NMClientClass *client_class)
 	/**
 	 * NMClient:devices:
 	 *
-	 * List of known network devices.
+	 * List of real network devices.  Does not include placeholder devices.
 	 *
 	 * Since: 0.9.10
 	 **/
 	g_object_class_install_property
 		(object_class, PROP_DEVICES,
 		 g_param_spec_boxed (NM_CLIENT_DEVICES, "", "",
+		                     NM_TYPE_OBJECT_ARRAY,
+		                     G_PARAM_READABLE |
+		                     G_PARAM_STATIC_STRINGS));
+
+	/**
+	 * NMClient:all-devices:
+	 *
+	 * List of both real devices and device placeholders.
+	 *
+	 * Since: 1.0
+	 **/
+	g_object_class_install_property
+		(object_class, PROP_ALL_DEVICES,
+		 g_param_spec_boxed (NM_CLIENT_ALL_DEVICES, "", "",
 		                     NM_TYPE_OBJECT_ARRAY,
 		                     G_PARAM_READABLE |
 		                     G_PARAM_STATIC_STRINGS));

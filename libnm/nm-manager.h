@@ -50,6 +50,7 @@ G_BEGIN_DECLS
 #define NM_MANAGER_PRIMARY_CONNECTION "primary-connection"
 #define NM_MANAGER_ACTIVATING_CONNECTION "activating-connection"
 #define NM_MANAGER_DEVICES "devices"
+#define NM_MANAGER_ALL_DEVICES "all-devices"
 
 typedef struct {
 	NMObject parent;
@@ -120,6 +121,7 @@ NMConnectivityState nm_manager_check_connectivity_finish (NMManager *manager,
 /* Devices */
 
 const GPtrArray *nm_manager_get_devices    (NMManager *manager);
+const GPtrArray *nm_manager_get_all_devices(NMManager *manager);
 NMDevice *nm_manager_get_device_by_path    (NMManager *manager, const char *object_path);
 NMDevice *nm_manager_get_device_by_iface   (NMManager *manager, const char *iface);
 
