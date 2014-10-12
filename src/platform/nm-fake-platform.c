@@ -500,6 +500,11 @@ link_get_driver_info (NMPlatform *platform,
                       char **out_driver_version,
                       char **out_fw_version)
 {
+	if (out_driver_version)
+		*out_driver_version = NULL;
+	if (out_fw_version)
+		*out_fw_version = NULL;
+
 	/* We call link_get just to cause an error to be set if @ifindex is bad. */
 	link_get (platform, ifindex);
 
