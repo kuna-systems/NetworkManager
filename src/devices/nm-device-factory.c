@@ -87,8 +87,7 @@ nm_device_factory_create_device (NMDeviceFactory *factory,
 	g_return_val_if_fail (factory, NULL);
 	g_return_val_if_fail (iface, NULL);
 	g_return_val_if_fail (plink || connection, NULL);
-	if (plink)
-		g_return_val_if_fail (strcmp (iface, plink->name) == 0, NULL);
+	g_return_val_if_fail (!plink || strcmp (iface, plink->name) == 0, NULL);
 
 	if (NM_DEVICE_FACTORY_GET_INTERFACE (factory)->create_device)
 		return NM_DEVICE_FACTORY_GET_INTERFACE (factory)->create_device (factory, iface, plink, connection);
