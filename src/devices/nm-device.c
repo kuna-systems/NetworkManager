@@ -1607,20 +1607,34 @@ nm_device_unrealize (NMDevice *self, gboolean link_deleted, GError **error)
 	if (NM_DEVICE_GET_CLASS (self)->unrealize)
 		success = NM_DEVICE_GET_CLASS (self)->unrealize (self, link_deleted, error);
 
+	g_object_freeze_notify (G_OBJECT (self));
+
 	priv->ifindex = 0;
 	priv->ip_ifindex = 0;
-	g_clear_pointer (&priv->ip_iface, g_free);
-	g_object_notify (G_OBJECT (self), NM_DEVICE_IP_IFACE);
-	g_clear_pointer (&priv->driver_version, g_free);
-	g_object_notify (G_OBJECT (self), NM_DEVICE_DRIVER_VERSION);
-	g_clear_pointer (&priv->firmware_version, g_free);
-	g_object_notify (G_OBJECT (self), NM_DEVICE_FIRMWARE_VERSION);
-	g_clear_pointer (&priv->udi, g_free);
-	g_object_notify (G_OBJECT (self), NM_DEVICE_UDI);
-	g_clear_pointer (&priv->hw_addr, g_free);
-	g_object_notify (G_OBJECT (self), NM_DEVICE_HW_ADDRESS);
-	g_clear_pointer (&priv->physical_port_id, g_free);
-	g_object_notify (G_OBJECT (self), NM_DEVICE_PHYSICAL_PORT_ID);
+	if (priv->ip_iface) {
+		g_clear_pointer (&priv->ip_iface, g_free);
+		g_object_notify (G_OBJECT (self), NM_DEVICE_IP_IFACE);
+	}
+	if (priv->driver_version) {
+		g_clear_pointer (&priv->driver_version, g_free);
+		g_object_notify (G_OBJECT (self), NM_DEVICE_DRIVER_VERSION);
+	}
+	if (priv->firmware_version) {
+		g_clear_pointer (&priv->firmware_version, g_free);
+		g_object_notify (G_OBJECT (self), NM_DEVICE_FIRMWARE_VERSION);
+	}
+	if (priv->udi) {
+		g_clear_pointer (&priv->udi, g_free);
+		g_object_notify (G_OBJECT (self), NM_DEVICE_UDI);
+	}
+	if (priv->hw_addr) {
+		g_clear_pointer (&priv->hw_addr, g_free);
+		g_object_notify (G_OBJECT (self), NM_DEVICE_HW_ADDRESS);
+	}
+	if (priv->physical_port_id) {
+		g_clear_pointer (&priv->physical_port_id, g_free);
+		g_object_notify (G_OBJECT (self), NM_DEVICE_PHYSICAL_PORT_ID);
+	}
 
 	g_clear_pointer (&priv->perm_hw_addr, g_free);
 	g_clear_pointer (&priv->initial_hw_addr, g_free);
@@ -1630,6 +1644,8 @@ nm_device_unrealize (NMDevice *self, gboolean link_deleted, GError **error)
 
 	priv->real = FALSE;
 	g_object_notify (G_OBJECT (self), NM_DEVICE_REAL);
+
+	g_object_thaw_notify (G_OBJECT (self));
 
 	return success;
 }
