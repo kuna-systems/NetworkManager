@@ -1966,14 +1966,20 @@ platform_link_cb (NMPlatform *platform,
 		device = nm_manager_get_device_by_ifindex (self, ifindex);
 		if (!device)
 			break;
+
+		/* Software devices stick around until their connection is removed */
 		if (nm_device_is_software (device)) {
 			if (!nm_device_unrealize (device, FALSE, &error)) {
 				nm_log_warn (LOGD_DEVICE, "(%s): failed to unrealize: %s",
 				             nm_device_get_iface (device),
 				             error->message);
 				g_clear_error (&error);
+				remove_device (self, device, FALSE, TRUE);
 			}
+			break;
 		}
+
+		/* Hardware devices always get removed when their kernel link is gone */
 		remove_device (self, device, FALSE, TRUE);
 		break;
 	 default:
