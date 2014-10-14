@@ -1049,20 +1049,20 @@ system_create_virtual_device (NMManager *self, NMConnection *connection, GError 
 			 */
 			add_device (self, device, !nm_owned);
 		} else {
-			nm_log_err (LOGD_DEVICE, "(%s) failed to create virtual device: %s",
-			            nm_connection_get_id (connection),
+			nm_log_err (LOGD_DEVICE, "(%s) failed to create virtual device for '%s': %s",
+			            nm_connection_get_id (connection), iface,
 			            local_err ? local_err->message : "(unknown error)");
 			g_propagate_error (error, local_err);
 			g_clear_object (&device);
 		}
 	} else {
-		nm_log_warn (LOGD_DEVICE, "(%s) failed to create virtual device",
-		            nm_connection_get_id (connection));
+		nm_log_warn (LOGD_DEVICE, "(%s) failed to create virtual device for '%s'",
+		            nm_connection_get_id (connection), iface);
 		g_set_error (error,
 		             NM_MANAGER_ERROR,
 		             NM_MANAGER_ERROR_FAILED,
-		             "(%s) failed to create virtual device",
-		             nm_connection_get_connection_type (connection));
+		             "(%s) failed to create virtual device for '%s'",
+		             nm_connection_get_connection_type (connection), iface);
 	}
 
 	priv->ignore_link_added_cb--;
