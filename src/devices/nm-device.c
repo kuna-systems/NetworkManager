@@ -529,7 +529,7 @@ nm_device_get_ifindex (NMDevice *self)
 gboolean
 nm_device_is_software (NMDevice *self)
 {
-	return !!(NM_DEVICE_GET_PRIVATE (self)->capabilities & NM_DEVICE_CAP_IS_SOFTWARE);
+	return NM_FLAGS_HAS (NM_DEVICE_GET_PRIVATE (self)->capabilities, NM_DEVICE_CAP_IS_SOFTWARE);
 }
 
 /**
@@ -1476,6 +1476,8 @@ setup (NMDevice *self, NMPlatformLink *plink)
 	g_return_if_fail (priv->ip_ifindex <= 0);
 	g_return_if_fail (priv->ip_iface == NULL);
 
+	g_object_freeze_notify (G_OBJECT (self));
+
 	if (plink) {
 		g_return_if_fail (priv->iface == NULL || strcmp (plink->name, priv->iface) == 0);
 		update_device_from_platform_link (self, plink);
@@ -1496,7 +1498,6 @@ setup (NMDevice *self, NMPlatformLink *plink)
 
 	if (NM_DEVICE_GET_CLASS (self)->get_generic_capabilities)
 		priv->capabilities |= NM_DEVICE_GET_CLASS (self)->get_generic_capabilities (self);
-	g_object_notify (G_OBJECT (self), NM_DEVICE_CAPABILITIES);
 
 	if (!priv->udi) {
 		/* Use a placeholder UDI until we get a real one */
@@ -1564,6 +1565,8 @@ setup (NMDevice *self, NMPlatformLink *plink)
 
 	priv->real = TRUE;
 	g_object_notify (G_OBJECT (self), NM_DEVICE_REAL);
+
+	g_object_thaw_notify (G_OBJECT (self));
 }
 
 static gboolean
