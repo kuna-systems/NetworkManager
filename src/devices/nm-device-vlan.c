@@ -170,11 +170,17 @@ create_and_realize (NMDevice *device,
 }
 
 static gboolean
-unrealize (NMDevice *device, gboolean link_deleted, GError **error)
+unrealize (NMDevice *device, gboolean remove_resources, GError **error)
 {
+	gboolean success;
+
+	success = NM_DEVICE_CLASS (nm_device_vlan_parent_class)->unrealize (device, remove_resources, error);
+
 	NM_DEVICE_VLAN_GET_PRIVATE (device)->vlan_id = 0;
+	g_object_notify (G_OBJECT (device), NM_DEVICE_VLAN_ID);
 	nm_device_vlan_set_parent (NM_DEVICE_VLAN (device), NULL);
-	return TRUE;
+
+	return success;
 }
 
 static guint32

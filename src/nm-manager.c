@@ -1964,7 +1964,7 @@ platform_link_cb (NMPlatform *platform,
 		if (!device)
 			break;
 		if (nm_device_is_software (device)) {
-			if (!nm_device_unrealize (device, TRUE, &error)) {
+			if (!nm_device_unrealize (device, FALSE, &error)) {
 				nm_log_warn (LOGD_DEVICE, "(%s): failed to unrealize: %s",
 				             nm_device_get_iface (device),
 				             error->message);

@@ -158,16 +158,15 @@ typedef struct {
 	/**
 	 * unrealize():
 	 * @self: the #NMDevice
-	 * @link_deleted: if %TRUE, the backing kernel resources are already deleted
+	 * @remove_resources: if %TRUE remove backing resources
 	 * @error: location to store error, or %NULL
 	 *
-	 * Releases any backing resources (kernel devices, etc) created for this
-	 * device and clears properties that depend on them.  Does not destroy
-	 * the device object itself.
+	 * Clears any properties that depend on backing resources (kernel devices,
+	 * etc) and removes those resources if @remove_resources is %TRUE.
 	 *
 	 * Returns: %TRUE on success, %FALSE on error
 	 */
-	gboolean        (*unrealize)  (NMDevice *self, gboolean link_deleted, GError **error);
+	gboolean        (*unrealize)  (NMDevice *self, gboolean remove_resources, GError **error);
 
 	/* Hardware state (IFF_UP) */
 	gboolean        (*is_up)      (NMDevice *self);
@@ -418,7 +417,7 @@ gboolean nm_device_create_and_realize (NMDevice *self,
                                        NMDevice *parent,
                                        GError **error);
 gboolean nm_device_unrealize          (NMDevice *device,
-                                       gboolean link_deleted,
+                                       gboolean remove_resources,
                                        GError **error);
 
 gboolean nm_device_get_autoconnect (NMDevice *device);

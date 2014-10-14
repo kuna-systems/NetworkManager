@@ -1574,11 +1574,11 @@ setup (NMDevice *self, NMPlatformLink *plink)
 }
 
 static gboolean
-unrealize (NMDevice *self, gboolean link_deleted, GError **error)
+unrealize (NMDevice *self, gboolean remove_resources, GError **error)
 {
 	int ifindex = nm_device_get_ifindex (self);
 
-	if (ifindex > 0 && nm_device_is_software (self) && !link_deleted)
+	if (ifindex > 0 && nm_device_is_software (self) && remove_resources)
 		nm_platform_link_delete (ifindex);
 
 	return TRUE;
@@ -1587,15 +1587,16 @@ unrealize (NMDevice *self, gboolean link_deleted, GError **error)
 /**
  * nm_device_unrealize():
  * @self: the #NMDevice
+ * @remove_resources: if %TRUE, remove backing resources
  * @error: location to store error, or %NULL
  *
- * Release any backing resources (kernel devices, etc) created for this
- * device and clear properties associated with external resources.
+ * Clears any properties that depend on backing resources (kernel devices,
+ * etc) and removes those resources if @remove_resources is %TRUE.
  *
  * Returns: %TRUE on success, %FALSE on error
  */
 gboolean
-nm_device_unrealize (NMDevice *self, gboolean link_deleted, GError **error)
+nm_device_unrealize (NMDevice *self, gboolean remove_resources, GError **error)
 {
 	NMDevicePrivate *priv = NM_DEVICE_GET_PRIVATE (self);
 	gboolean success = TRUE;
@@ -1604,10 +1605,10 @@ nm_device_unrealize (NMDevice *self, gboolean link_deleted, GError **error)
 	g_return_val_if_fail (nm_device_is_software (self), FALSE);
 	g_return_val_if_fail (priv->iface != NULL, FALSE);
 
-	if (NM_DEVICE_GET_CLASS (self)->unrealize)
-		success = NM_DEVICE_GET_CLASS (self)->unrealize (self, link_deleted, error);
-
 	g_object_freeze_notify (G_OBJECT (self));
+
+	if (NM_DEVICE_GET_CLASS (self)->unrealize)
+		success = NM_DEVICE_GET_CLASS (self)->unrealize (self, remove_resources, error);
 
 	priv->ifindex = 0;
 	priv->ip_ifindex = 0;
@@ -5826,7 +5827,7 @@ delete_on_deactivate_link_delete (gpointer user_data)
 		g_object_remove_weak_pointer (G_OBJECT (data->device), (void **) &data->device);
 		priv->delete_on_deactivate_data = NULL;
 
-		nm_device_unrealize (data->device, FALSE, NULL);
+		nm_device_unrealize (data->device, TRUE, NULL);
 	} else {
 		nm_platform_link_delete (data->ifindex);
 	}
@@ -5957,7 +5958,7 @@ delete_cb (NMDevice *self,
 	}
 
 	/* Authorized */
-	if (nm_device_unrealize (self, FALSE, &local))
+	if (nm_device_unrealize (self, TRUE, &local))
 		dbus_g_method_return (context);
 	else {
 		dbus_g_method_return_error (context, local);
