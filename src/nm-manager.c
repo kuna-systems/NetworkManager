@@ -2116,7 +2116,7 @@ find_master (NMManager *self,
 	const char *master;
 	NMDevice *master_device = NULL;
 	NMConnection *master_connection = NULL;
-	GSList *iter, *connections = NULL;
+	GSList *iter;
 
 	s_con = nm_connection_get_setting_connection (connection);
 	g_assert (s_con);
@@ -2158,23 +2158,6 @@ find_master (NMManager *self,
 					break;
 				}
 			}
-		} else {
-			/* Might be a virtual interface that hasn't been created yet, so
-			 * look through the interface names of connections that require
-			 * virtual interfaces and see if one of their virtual interface
-			 * names matches the master.
-			 */
-			connections = nm_manager_get_activatable_connections (self);
-			for (iter = connections; iter && !master_connection; iter = g_slist_next (iter)) {
-				NMConnection *candidate = iter->data;
-				char *vname;
-
-				vname = get_virtual_iface_name (self, connection, NULL, NULL);
-				if (g_strcmp0 (master, vname) == 0 && is_compatible_with_slave (candidate, connection))
-					master_connection = candidate;
-				g_free (vname);
-			}
-			g_slist_free (connections);
 		}
 	}
 
