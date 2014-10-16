@@ -2298,14 +2298,26 @@ build_rtnl_link (int ifindex, const char *name, NMLinkType type)
 }
 
 static gboolean
-link_get_by_name (NMPlatform *platform, const char *name, NMPlatformLink *out_link)
+link_get_by_name (NMPlatform *platform,
+                  const char *name,
+                  NMLinkType required_type,
+                  NMPlatformLink *out_link)
 {
 	int ifindex;
+
+	g_return_val_if_fail (name != NULL, FALSE);
+	g_return_val_if_fail (required_type > NM_LINK_TYPE_UNKNOWN, FALSE);
 
 	if (out_link) {
 		ifindex = nm_platform_link_get_ifindex (name);
 		g_return_val_if_fail (ifindex > 0, FALSE);
-		return _nm_platform_link_get (platform, ifindex, out_link);
+		if (_nm_platform_link_get (platform, ifindex, out_link)) {
+			if (out_link->type != required_type) {
+				memset (out_link, 0, sizeof (NMPlatformLink));
+				platform->error = NM_PLATFORM_ERROR_WRONG_TYPE;
+				return FALSE;
+			}
+		}
 	}
 	return TRUE;
 }
@@ -2347,7 +2359,7 @@ link_add (NMPlatform *platform,
 	if (!add_object (platform, l))
 		return FALSE;
 
-	return link_get_by_name (platform, name, out_link);
+	return link_get_by_name (platform, name, type, out_link);
 }
 
 static struct rtnl_link *
@@ -2822,7 +2834,7 @@ vlan_add (NMPlatform *platform,
 	if (!add_object (platform, object))
 		return FALSE;
 
-	return link_get_by_name (platform, name, out_link);
+	return link_get_by_name (platform, name, NM_LINK_TYPE_VLAN, out_link);
 }
 
 static gboolean
@@ -3004,7 +3016,7 @@ infiniband_partition_add (NMPlatform *platform, int parent, int p_key, NMPlatfor
 
 		success = refresh_object (platform, (struct nl_object *) rtnllink, FALSE, NM_PLATFORM_REASON_INTERNAL);
 		if (success)
-			success = link_get_by_name (platform, ifname, out_link);
+			success = link_get_by_name (platform, ifname, NM_LINK_TYPE_INFINIBAND, out_link);
 	}
 
 	return success;
