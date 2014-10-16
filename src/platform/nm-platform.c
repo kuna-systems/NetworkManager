@@ -486,9 +486,11 @@ nm_platform_link_get (int ifindex, NMPlatformLink *link)
  * @address_len: the length of the @address
  * @out_link: on success, the link object
  *
- * Add a software interface. Sets platform->error to NM_PLATFORM_ERROR_EXISTS
- * if interface is already already exists.  Any link-changed ADDED signal will be
- * emitted directly, before this function finishes.
+ * Add a software interface.  If the interface already exists and is of type
+ * @type, sets platform->error to NM_PLATFORM_ERROR_EXISTS and returns the link
+ * in @out_link.  If the interface already exists and is not of type @type,
+ * sets platform->error to NM_PLATFORM_ERROR_WRONG_TYPE.  Any link-changed ADDED
+ * signal will be emitted directly, before this function finishes.
  */
 static gboolean
 nm_platform_link_add (const char *name,
@@ -497,15 +499,23 @@ nm_platform_link_add (const char *name,
                       size_t address_len,
                       NMPlatformLink *out_link)
 {
+	int ifindex;
+
 	reset_error ();
 
 	g_return_val_if_fail (name, FALSE);
 	g_return_val_if_fail (klass->link_add, FALSE);
 	g_return_val_if_fail ( (address != NULL) ^ (address_len == 0) , FALSE);
 
-	if (nm_platform_link_exists (name)) {
+	ifindex = nm_platform_link_get_ifindex (name);
+	if (ifindex > 0) {
 		debug ("link: already exists");
-		platform->error = NM_PLATFORM_ERROR_EXISTS;
+		if (nm_platform_link_get_type (ifindex) != type)
+			platform->error = NM_PLATFORM_ERROR_WRONG_TYPE;
+		else {
+			platform->error = NM_PLATFORM_ERROR_EXISTS;
+			(void) nm_platform_link_get (ifindex, out_link);
+		}
 		return FALSE;
 	}
 
