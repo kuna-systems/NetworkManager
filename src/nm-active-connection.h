@@ -49,7 +49,7 @@
 #define NM_ACTIVE_CONNECTION_VPN             "vpn"
 #define NM_ACTIVE_CONNECTION_MASTER          "master"
 
-/* Internal non-exported properties */
+/* Internal non-exported construct-time properties */
 #define NM_ACTIVE_CONNECTION_INT_CONNECTION     "int-connection"
 #define NM_ACTIVE_CONNECTION_INT_DEVICE         "int-device"
 #define NM_ACTIVE_CONNECTION_INT_SUBJECT        "int-subject"
