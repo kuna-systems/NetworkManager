@@ -2890,20 +2890,13 @@ validate_activation_request (NMManager *self,
 		device_path = NULL;
 
 	/* And validate it */
-	if (device_path) {
+	if (device_path)
 		device = nm_manager_get_device_by_path (self, device_path);
-		if (!device) {
-			g_set_error_literal (error,
-			                     NM_MANAGER_ERROR,
-			                     NM_MANAGER_ERROR_UNKNOWN_DEVICE,
-			                     "Device not found");
-			goto error;
-		}
-	} else {
+	else if (!vpn) {
 		gboolean is_software = nm_connection_is_virtual (connection);
 
 		/* VPN and software-device connections don't need a device yet */
-		if (!vpn && !is_software) {
+		if (!is_software) {
 			g_set_error_literal (error,
 			                     NM_MANAGER_ERROR,
 			                     NM_MANAGER_ERROR_UNKNOWN_DEVICE,
@@ -2924,7 +2917,7 @@ validate_activation_request (NMManager *self,
 		}
 	}
 
-	if (!device) {
+	if ((!vpn || device_path) && !device) {
 		g_set_error_literal (error,
 		                     NM_MANAGER_ERROR,
 		                     NM_MANAGER_ERROR_UNKNOWN_DEVICE,
