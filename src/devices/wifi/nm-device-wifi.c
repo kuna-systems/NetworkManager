@@ -3265,7 +3265,7 @@ nm_device_wifi_class_init (NMDeviceWifiClass *klass)
 
 	g_type_class_add_private (object_class, sizeof (NMDeviceWifiPrivate));
 
-	NM_DEVICE_CLASS_DECLARE_TYPES(klass, NULL, NM_LINK_TYPE_WIFI, NM_LINK_TYPE_OLPC_MESH)
+	NM_DEVICE_CLASS_DECLARE_TYPES(klass, NM_SETTING_WIRELESS_SETTING_NAME, NM_LINK_TYPE_WIFI)
 
 	object_class->constructor = constructor;
 	object_class->get_property = get_property;
