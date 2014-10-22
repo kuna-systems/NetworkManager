@@ -29,6 +29,9 @@
 #include "nm-device-factory.h"
 #include "nm-logging.h"
 
+const NMLinkType _nm_device_factory_no_default_links[] = { NM_LINK_TYPE_NONE };
+const char *_nm_device_factory_no_default_settings[] = { NULL };
+
 enum {
 	DEVICE_ADDED,
 	COMPONENT_ADDED,

@@ -215,17 +215,17 @@ gboolean   nm_device_factory_emit_component_added (NMDeviceFactory *factory,
 #define NM_DEVICE_FACTORY_DECLARE_SETTING_TYPES(...) \
 	{ static const char *_df_settings[] = { __VA_ARGS__, NULL }; *out_setting_types = _df_settings; }
 
+extern const NMLinkType _nm_device_factory_no_default_links[];
+extern const char *_nm_device_factory_no_default_settings[];
+
 #define NM_DEVICE_FACTORY_DECLARE_TYPES(...) \
 	static void \
 	get_supported_types (NMDeviceFactory *factory, \
 	                     const NMLinkType **out_link_types, \
 	                     const char ***out_setting_types) \
 	{ \
-		static const NMLinkType default_links[] = { NM_LINK_TYPE_NONE }; \
-		static const char *default_settings[] = { NULL }; \
- \
-		*out_link_types = default_links; \
-		*out_setting_types = default_settings; \
+		*out_link_types = _nm_device_factory_no_default_links; \
+		*out_setting_types = _nm_device_factory_no_default_settings; \
  \
 		{ __VA_ARGS__; } \
 	} \
