@@ -632,6 +632,7 @@ class UnknownConnectionException(dbus.DBusException):
     _dbus_error_name = IFACE_NM + '.UnknownConnection'
 
 PM_DEVICES = 'Devices'
+PM_ALL_DEVICES = 'AllDevices'
 PM_NETWORKING_ENABLED = 'NetworkingEnabled'
 PM_WWAN_ENABLED = 'WwanEnabled'
 PM_WWAN_HARDWARE_ENABLED = 'WwanHardwareEnabled'
@@ -675,6 +676,10 @@ class NetworkManager(ExportedObj):
     @dbus.service.method(dbus_interface=IFACE_NM, in_signature='', out_signature='ao')
     def GetDevices(self):
         return self._get_dbus_properties(IFACE_NM)[PM_DEVICES]
+
+    @dbus.service.method(dbus_interface=IFACE_NM, in_signature='', out_signature='ao')
+    def GetAllDevices(self):
+        return self._get_dbus_properties(IFACE_NM)[PM_ALL_DEVICES]
 
     @dbus.service.method(dbus_interface=IFACE_NM, in_signature='s', out_signature='o')
     def GetDeviceByIpIface(self, ip_iface):
@@ -793,6 +798,7 @@ class NetworkManager(ExportedObj):
     def add_device(self, device):
         self.devices.append(device)
         self.__notify(PM_DEVICES)
+        self.__notify(PM_ALL_DEVICES)
         self.DeviceAdded(to_path(device))
 
     @dbus.service.signal(IFACE_NM, signature='o')
@@ -802,12 +808,14 @@ class NetworkManager(ExportedObj):
     def remove_device(self, device):
         self.devices.remove(device)
         self.__notify(PM_DEVICES)
+        self.__notify(PM_ALL_DEVICES)
         self.DeviceRemoved(to_path(device))
 
     ################# D-Bus Properties interface
     def __get_props(self):
         props = {}
         props[PM_DEVICES] = to_path_array(self.devices)
+        props[PM_ALL_DEVICES] = to_path_array(self.devices)
         props[PM_NETWORKING_ENABLED] = True
         props[PM_WWAN_ENABLED] = True
         props[PM_WWAN_HARDWARE_ENABLED] = True
