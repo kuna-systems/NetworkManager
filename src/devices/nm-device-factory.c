@@ -53,7 +53,15 @@ nm_device_factory_get_supported_types (NMDeviceFactory *factory,
 	                                   const NMLinkType **out_link_types,
 	                                   const char ***out_setting_types)
 {
+	const NMLinkType *link_types_fallback;
+	const char **setting_types_fallback;
+
 	g_return_if_fail (factory != NULL);
+
+	if (!out_link_types)
+		out_link_types = &link_types_fallback;
+	if (!out_setting_types)
+		out_setting_types = &setting_types_fallback;
 
 	NM_DEVICE_FACTORY_GET_INTERFACE (factory)->get_supported_types (factory,
 	                                                                out_link_types,
