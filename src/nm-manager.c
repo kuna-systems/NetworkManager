@@ -507,10 +507,12 @@ find_device_by_hw_addr (NMManager *manager, const char *hwaddr)
 
 	g_return_val_if_fail (hwaddr != NULL, NULL);
 
-	for (iter = NM_MANAGER_GET_PRIVATE (manager)->devices; iter; iter = iter->next) {
-		device_addr = nm_device_get_hw_address (NM_DEVICE (iter->data));
-		if (device_addr && nm_utils_hwaddr_matches (hwaddr, -1, device_addr, -1))
-			return NM_DEVICE (iter->data);
+	if (nm_utils_hwaddr_valid (hwaddr, -1)) {
+		for (iter = NM_MANAGER_GET_PRIVATE (manager)->devices; iter; iter = iter->next) {
+			device_addr = nm_device_get_hw_address (NM_DEVICE (iter->data));
+			if (device_addr && nm_utils_hwaddr_matches (hwaddr, -1, device_addr, -1))
+				return NM_DEVICE (iter->data);
+		}
 	}
 	return NULL;
 }
