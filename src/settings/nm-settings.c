@@ -302,6 +302,9 @@ nm_settings_get_connection_by_uuid (NMSettings *self, const char *uuid)
 	g_return_val_if_fail (NM_IS_SETTINGS (self), NULL);
 	g_return_val_if_fail (uuid != NULL, NULL);
 
+	if (!nm_utils_is_uuid (uuid))
+		return NULL;
+
 	priv = NM_SETTINGS_GET_PRIVATE (self);
 
 	g_hash_table_iter_init (&iter, priv->connections);
