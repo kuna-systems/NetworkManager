@@ -351,8 +351,8 @@ nm_device_factory_manager_load_factories (NMDeviceFactoryManagerFactoryLoadedFun
 	GError *error = NULL;
 	char **path, **paths;
 
-	g_return_val_if_fail (factories_by_link == NULL, FALSE);
-	g_return_val_if_fail (factories_by_setting == NULL, FALSE);
+	g_return_if_fail (factories_by_link == NULL);
+	g_return_if_fail (factories_by_setting == NULL);
 	factories_by_link = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_object_unref);
 	factories_by_setting = g_hash_table_new_full (g_str_hash, g_str_equal, NULL, g_object_unref);
 
