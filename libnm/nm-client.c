@@ -84,6 +84,8 @@ enum {
 enum {
 	DEVICE_ADDED,
 	DEVICE_REMOVED,
+	ANY_DEVICE_ADDED,
+	ANY_DEVICE_REMOVED,
 	PERMISSION_CHANGED,
 	CONNECTION_ADDED,
 	CONNECTION_REMOVED,
@@ -1686,12 +1688,29 @@ manager_device_added (NMManager *manager,
 {
 	g_signal_emit (client, signals[DEVICE_ADDED], 0, device);
 }
+
 static void
 manager_device_removed (NMManager *manager,
                         NMDevice *device,
                         gpointer client)
 {
 	g_signal_emit (client, signals[DEVICE_REMOVED], 0, device);
+}
+
+static void
+manager_any_device_added (NMManager *manager,
+                          NMDevice *device,
+                          gpointer client)
+{
+	g_signal_emit (client, signals[ANY_DEVICE_ADDED], 0, device);
+}
+
+static void
+manager_any_device_removed (NMManager *manager,
+                            NMDevice *device,
+                            gpointer client)
+{
+	g_signal_emit (client, signals[ANY_DEVICE_REMOVED], 0, device);
 }
 
 static void
@@ -1733,6 +1752,10 @@ constructed (GObject *object)
 	                  G_CALLBACK (manager_device_added), client);
 	g_signal_connect (priv->manager, "device-removed",
 	                  G_CALLBACK (manager_device_removed), client);
+	g_signal_connect (priv->manager, "any-device-added",
+	                  G_CALLBACK (manager_any_device_added), client);
+	g_signal_connect (priv->manager, "any-device-removed",
+	                  G_CALLBACK (manager_any_device_removed), client);
 	g_signal_connect (priv->manager, "permission-changed",
 	                  G_CALLBACK (manager_permission_changed), client);
 
@@ -2192,7 +2215,8 @@ nm_client_class_init (NMClientClass *client_class)
 	 * @client: the client that received the signal
 	 * @device: (type NMDevice): the new device
 	 *
-	 * Notifies that a #NMDevice is added.
+	 * Notifies that a #NMDevice is added.  This signal is not emitted for
+	 * placeholder devices.
 	 **/
 	signals[DEVICE_ADDED] =
 		g_signal_new (NM_CLIENT_DEVICE_ADDED,
@@ -2208,13 +2232,48 @@ nm_client_class_init (NMClientClass *client_class)
 	 * @client: the client that received the signal
 	 * @device: (type NMDevice): the removed device
 	 *
-	 * Notifies that a #NMDevice is removed.
+	 * Notifies that a #NMDevice is removed.  This signal is not emitted for
+	 * placeholder devices.
 	 **/
 	signals[DEVICE_REMOVED] =
 		g_signal_new (NM_CLIENT_DEVICE_REMOVED,
 		              G_OBJECT_CLASS_TYPE (object_class),
 		              G_SIGNAL_RUN_FIRST,
 		              G_STRUCT_OFFSET (NMClientClass, device_removed),
+		              NULL, NULL, NULL,
+		              G_TYPE_NONE, 1,
+		              G_TYPE_OBJECT);
+
+	/**
+	 * NMClient::any-device-added:
+	 * @client: the client that received the signal
+	 * @device: (type NMDevice): the new device
+	 *
+	 * Notifies that a #NMDevice is added.  This signal is emitted for both
+	 * regular devices and placeholder devices.
+	 **/
+	signals[ANY_DEVICE_ADDED] =
+		g_signal_new (NM_CLIENT_ANY_DEVICE_ADDED,
+		              G_OBJECT_CLASS_TYPE (object_class),
+		              G_SIGNAL_RUN_FIRST,
+		              G_STRUCT_OFFSET (NMClientClass, any_device_added),
+		              NULL, NULL, NULL,
+		              G_TYPE_NONE, 1,
+		              G_TYPE_OBJECT);
+
+	/**
+	 * NMClient::any-device-removed:
+	 * @client: the client that received the signal
+	 * @device: (type NMDevice): the removed device
+	 *
+	 * Notifies that a #NMDevice is removed.  This signal is emitted for both
+	 * regular devices and placeholder devices.
+	 **/
+	signals[ANY_DEVICE_REMOVED] =
+		g_signal_new (NM_CLIENT_ANY_DEVICE_REMOVED,
+		              G_OBJECT_CLASS_TYPE (object_class),
+		              G_SIGNAL_RUN_FIRST,
+		              G_STRUCT_OFFSET (NMClientClass, any_device_removed),
 		              NULL, NULL, NULL,
 		              G_TYPE_NONE, 1,
 		              G_TYPE_OBJECT);

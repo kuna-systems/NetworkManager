@@ -60,6 +60,8 @@ G_BEGIN_DECLS
 
 #define NM_CLIENT_DEVICE_ADDED "device-added"
 #define NM_CLIENT_DEVICE_REMOVED "device-removed"
+#define NM_CLIENT_ANY_DEVICE_ADDED "any-device-added"
+#define NM_CLIENT_ANY_DEVICE_REMOVED "any-device-removed"
 #define NM_CLIENT_PERMISSION_CHANGED "permission-changed"
 #define NM_CLIENT_CONNECTION_ADDED "connection-added"
 #define NM_CLIENT_CONNECTION_REMOVED "connection-removed"
@@ -164,6 +166,8 @@ typedef struct {
 	/* Signals */
 	void (*device_added) (NMClient *client, NMDevice *device);
 	void (*device_removed) (NMClient *client, NMDevice *device);
+	void (*any_device_added) (NMClient *client, NMDevice *device);
+	void (*any_device_removed) (NMClient *client, NMDevice *device);
 	void (*permission_changed) (NMClient *client,
 	                            NMClientPermission permission,
 	                            NMClientPermissionResult result);
