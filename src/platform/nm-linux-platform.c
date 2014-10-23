@@ -2274,7 +2274,9 @@ _nm_platform_link_get (NMPlatform *platform, int ifindex, NMPlatformLink *l)
 	rtnllink = rtnl_link_get (priv->link_cache, ifindex);
 	if (rtnllink) {
 		if (link_is_announceable (platform, rtnllink)) {
-			if (init_link (platform, l, rtnllink))
+			NMPlatformLink tmp = { 0 };
+
+			if (init_link (platform, l ? l : &tmp, rtnllink))
 				return TRUE;
 		}
 	}

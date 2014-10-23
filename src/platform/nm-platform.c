@@ -472,7 +472,6 @@ gboolean
 nm_platform_link_get (int ifindex, NMPlatformLink *link)
 {
 	g_return_val_if_fail (ifindex > 0, FALSE);
-	g_return_val_if_fail (link, FALSE);
 
 	g_return_val_if_fail (klass->link_get, FALSE);
 	return !!klass->link_get (platform, ifindex, link);

@@ -169,7 +169,7 @@ _nm_platform_link_get (NMPlatform *platform, int ifindex, NMPlatformLink *l)
 {
 	NMFakePlatformLink *device = link_get (platform, ifindex);
 
-	if (device)
+	if (device && l)
 		*l = device->link;
 	return !!device;
 }
