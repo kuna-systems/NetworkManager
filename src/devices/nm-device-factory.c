@@ -175,8 +175,10 @@ static void __attribute__((destructor))
 _cleanup (void)
 {
 	g_slist_free (internal_types);
-	g_hash_table_destroy (factories_by_link);
-	g_hash_table_destroy (factories_by_setting);
+	if (factories_by_link)
+		g_hash_table_destroy (factories_by_link);
+	if (factories_by_setting)
+		g_hash_table_destroy (factories_by_setting);
 }
 
 NMDeviceFactory *
