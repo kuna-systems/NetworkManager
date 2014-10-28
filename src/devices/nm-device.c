@@ -1610,7 +1610,10 @@ nm_device_unrealize (NMDevice *self, gboolean remove_resources, GError **error)
 	if (NM_DEVICE_GET_CLASS (self)->unrealize)
 		success = NM_DEVICE_GET_CLASS (self)->unrealize (self, remove_resources, error);
 
-	priv->ifindex = 0;
+	if (priv->ifindex > 0) {
+		priv->ifindex = 0;
+		g_object_notify (G_OBJECT (self), NM_DEVICE_IFINDEX);
+	}
 	priv->ip_ifindex = 0;
 	if (priv->ip_iface) {
 		g_clear_pointer (&priv->ip_iface, g_free);
