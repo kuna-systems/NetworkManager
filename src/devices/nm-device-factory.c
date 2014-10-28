@@ -45,61 +45,6 @@ nm_device_factory_emit_component_added (NMDeviceFactory *factory, GObject *compo
 	return consumed;
 }
 
-static void
-interface_init (gpointer g_iface)
-{
-	GType iface_type = G_TYPE_FROM_INTERFACE (g_iface);
-	static gboolean initialized = FALSE;
-
-	if (G_LIKELY (initialized))
-		return;
-
-	/* Signals */
-	signals[DEVICE_ADDED] = g_signal_new (NM_DEVICE_FACTORY_DEVICE_ADDED,
-	                                      iface_type,
-	                                      G_SIGNAL_RUN_FIRST,
-	                                      G_STRUCT_OFFSET (NMDeviceFactory, device_added),
-	                                      NULL, NULL, NULL,
-	                                      G_TYPE_NONE, 1, NM_TYPE_DEVICE);
-
-	signals[COMPONENT_ADDED] = g_signal_new (NM_DEVICE_FACTORY_COMPONENT_ADDED,
-	                                         iface_type,
-	                                         G_SIGNAL_RUN_LAST,
-	                                         G_STRUCT_OFFSET (NMDeviceFactory, component_added),
-	                                         g_signal_accumulator_true_handled, NULL, NULL,
-	                                         G_TYPE_BOOLEAN, 1, G_TYPE_OBJECT);
-
-	initialized = TRUE;
-}
-
-GType
-nm_device_factory_get_type (void)
-{
-	static GType device_factory_type = 0;
-
-	if (!device_factory_type) {
-		const GTypeInfo device_factory_info = {
-			sizeof (NMDeviceFactory), /* class_size */
-			interface_init,           /* base_init */
-			NULL,                     /* base_finalize */
-			NULL,
-			NULL,                     /* class_finalize */
-			NULL,                     /* class_data */
-			0,
-			0,                        /* n_preallocs */
-			NULL
-		};
-
-		device_factory_type = g_type_register_static (G_TYPE_INTERFACE,
-		                                              "NMDeviceFactory",
-		                                              &device_factory_info,
-		                                              0);
-		g_type_interface_add_prerequisite (device_factory_type, G_TYPE_OBJECT);
-	}
-
-	return device_factory_type;
-}
-
 void
 nm_device_factory_get_supported_types (NMDeviceFactory *factory,
 	                                   const NMLinkType **out_link_types,
@@ -167,13 +112,26 @@ nm_device_factory_get_connection_parent (NMDeviceFactory *factory,
 	return NULL;
 }
 
+static char *
+get_virtual_iface_name (NMDeviceFactory *factory,
+                        NMConnection *connection,
+                        const char *parent_iface)
+{
+	const char *iface;
+
+	/* For any other virtual connection, NMSettingConnection:interface-name is
+	 * the virtual device name.
+	 */
+	iface = nm_connection_get_interface_name (connection);
+	g_return_val_if_fail (iface != NULL, NULL);
+	return g_strdup (iface);
+}
+
 char *
 nm_device_factory_get_virtual_iface_name (NMDeviceFactory *factory,
                                           NMConnection *connection,
                                           const char *parent_iface)
 {
-	const char *iface;
-
 	g_return_val_if_fail (factory != NULL, NULL);
 	g_return_val_if_fail (connection != NULL, NULL);
 
@@ -182,13 +140,49 @@ nm_device_factory_get_virtual_iface_name (NMDeviceFactory *factory,
 
 	if (NM_DEVICE_FACTORY_GET_INTERFACE (factory)->get_virtual_iface_name)
 		return NM_DEVICE_FACTORY_GET_INTERFACE (factory)->get_virtual_iface_name (factory, connection, parent_iface);
+	return NULL;
+}
 
-	/* For any other virtual connection, NMSettingConnection:interface-name is
-	 * the virtual device name.
-	 */
-	iface = nm_connection_get_interface_name (connection);
-	g_return_val_if_fail (iface != NULL, NULL);
-	return g_strdup (iface);
+/*******************************************************************/
+
+static void
+default_init (NMDeviceFactory *factory_iface)
+{
+	factory_iface->get_virtual_iface_name = get_virtual_iface_name;
+
+	/* Signals */
+	signals[DEVICE_ADDED] = g_signal_new (NM_DEVICE_FACTORY_DEVICE_ADDED,
+	                                      NM_TYPE_DEVICE_FACTORY,
+	                                      G_SIGNAL_RUN_FIRST,
+	                                      G_STRUCT_OFFSET (NMDeviceFactory, device_added),
+	                                      NULL, NULL, NULL,
+	                                      G_TYPE_NONE, 1, NM_TYPE_DEVICE);
+
+	signals[COMPONENT_ADDED] = g_signal_new (NM_DEVICE_FACTORY_COMPONENT_ADDED,
+	                                         NM_TYPE_DEVICE_FACTORY,
+	                                         G_SIGNAL_RUN_LAST,
+	                                         G_STRUCT_OFFSET (NMDeviceFactory, component_added),
+	                                         g_signal_accumulator_true_handled, NULL, NULL,
+	                                         G_TYPE_BOOLEAN, 1, G_TYPE_OBJECT);
+}
+
+GType
+nm_device_factory_get_type (void)
+{
+	static volatile gsize g_define_type_id__volatile = 0;
+	if (g_once_init_enter (&g_define_type_id__volatile)) {
+		GType g_define_type_id =
+			g_type_register_static_simple (G_TYPE_INTERFACE,
+			                               g_intern_static_string ("NMDeviceFactory"),
+			                               sizeof (NMDeviceFactory),
+			                               (GClassInitFunc) default_init,
+			                               0,
+			                               (GInstanceInitFunc) NULL,
+			                               (GTypeFlags) 0);
+		g_type_interface_add_prerequisite (g_define_type_id, G_TYPE_OBJECT);
+		g_once_init_leave (&g_define_type_id__volatile, g_define_type_id);
+	}
+	return g_define_type_id__volatile;
 }
 
 /*******************************************************************/
