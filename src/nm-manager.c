@@ -1723,8 +1723,12 @@ add_device (NMManager *self, NMDevice *device, gboolean try_assume)
 	RfKillType rtype;
 	GSList *iter, *remove = NULL;
 	gboolean connection_assumed = FALSE;
+	int ifindex;
 
 	/* No duplicates */
+	ifindex = nm_device_get_ifindex (device);
+	if (ifindex > 0 && nm_manager_get_device_by_ifindex (self, ifindex))
+		return;
 	if (find_device_by_iface (self, nm_device_get_iface (device)))
 		return;
 
