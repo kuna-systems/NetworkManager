@@ -175,9 +175,6 @@ typedef struct {
 	gboolean       prop_filter_added;
 	NMRfkillManager *rfkill_mgr;
 
-	/* List of NMDeviceFactoryFunc pointers sorted in priority order */
-	GSList *factories;
-
 	NMSettings *settings;
 	char *hostname;
 
@@ -3977,7 +3974,6 @@ void
 nm_manager_start (NMManager *self)
 {
 	NMManagerPrivate *priv = NM_MANAGER_GET_PRIVATE (self);
-	GSList *iter;
 	guint i;
 
 	/* Set initial radio enabled/disabled state */
@@ -4009,8 +4005,7 @@ nm_manager_start (NMManager *self)
 	system_hostname_changed_cb (priv->settings, NULL, self);
 
 	/* Start device factories */
-	for (iter = priv->factories; iter; iter = iter->next)
-		nm_device_factory_start (iter->data);
+	nm_device_factory_manager_for_each_factory ((NMDeviceFactoryManagerFactoryFunc) nm_device_factory_start, NULL);
 
 	nm_platform_query_devices ();
 
@@ -4843,13 +4838,18 @@ set_property (GObject *object, guint prop_id,
 }
 
 static void
+_deinit_device_factory (NMDeviceFactory *factory, gpointer user_data)
+{
+	g_signal_handlers_disconnect_matched (factory, G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, NM_MANAGER (user_data));
+}
+
+static void
 dispose (GObject *object)
 {
 	NMManager *manager = NM_MANAGER (object);
 	NMManagerPrivate *priv = NM_MANAGER_GET_PRIVATE (manager);
 	DBusGConnection *bus;
 	DBusConnection *dbus_connection;
-	GSList *iter;
 
 	g_slist_free_full (priv->auth_chains, (GDestroyNotify) nm_auth_chain_unref);
 	priv->auth_chains = NULL;
@@ -4917,14 +4917,8 @@ dispose (GObject *object)
 		g_clear_object (&priv->fw_monitor);
 	}
 
-	for (iter = priv->factories; iter; iter = iter->next) {
-		NMDeviceFactory *factory = iter->data;
-
-		g_signal_handlers_disconnect_matched (factory, G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, manager);
-		g_object_unref (factory);
-	}
-	g_clear_pointer (&priv->factories, g_slist_free);
-
+	nm_device_factory_manager_for_each_factory (_deinit_device_factory, manager);
+	
 	if (priv->timestamp_update_id) {
 		g_source_remove (priv->timestamp_update_id);
 		priv->timestamp_update_id = 0;

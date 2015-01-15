@@ -248,15 +248,18 @@ void _nm_device_factory_internal_register_type (GType factory_type);
  * PRIVATE FACTORY FUNCTIONS - for factory consumers (eg, NMManager).
  **************************************************************************/
 
-typedef void (*NMDeviceFactoryManagerFactoryLoadedFunc)    (NMDeviceFactory *factory,
-                                                            gpointer user_data);
+typedef void (*NMDeviceFactoryManagerFactoryFunc)    (NMDeviceFactory *factory,
+                                                      gpointer user_data);
 
-void              nm_device_factory_manager_load_factories (NMDeviceFactoryManagerFactoryLoadedFunc loaded_func,
+void              nm_device_factory_manager_load_factories (NMDeviceFactoryManagerFactoryFunc callback,
                                                             gpointer user_data);
 
 NMDeviceFactory * nm_device_factory_manager_find_factory   (const NMLinkType *needle_link_types,
                                                             const char **needle_setting_types);
 
 NMDeviceFactory * nm_device_factory_manager_find_factory_for_connection (NMConnection *connection);
+
+void              nm_device_factory_manager_for_each_factory (NMDeviceFactoryManagerFactoryFunc callback,
+                                                              gpointer user_data);
 
 #endif /* __NETWORKMANAGER_DEVICE_FACTORY_H__ */

@@ -208,6 +208,31 @@ nm_device_factory_manager_find_factory_for_connection (NMConnection *connection)
 	return nm_device_factory_manager_find_factory (NULL, stypes);
 }
 
+void
+nm_device_factory_manager_for_each_factory (NMDeviceFactoryManagerFactoryFunc callback,
+                                            gpointer user_data)
+{
+	GHashTableIter iter;
+	NMDeviceFactory *factory;
+	GSList *list_iter, *list = NULL;
+
+	g_hash_table_iter_init (&iter, factories_by_link);
+	while (g_hash_table_iter_next (&iter, NULL, (gpointer) &factory))
+		list = g_slist_prepend (list, factory);
+
+	g_hash_table_iter_init (&iter, factories_by_setting);
+	while (g_hash_table_iter_next (&iter, NULL, (gpointer) &factory)) {
+		if (!g_slist_find (list, factory))
+			list = g_slist_prepend (list, factory);
+	}
+
+	list = g_slist_reverse (list);
+	for (list_iter = list; list_iter; list_iter = list_iter->next)
+		callback (list_iter->data, user_data);
+
+	g_slist_free (list);
+}
+
 #define PLUGIN_PREFIX "libnm-device-plugin-"
 #define PLUGIN_PATH_TAG "NMManager-plugin-path"
 
@@ -304,7 +329,7 @@ static gboolean
 _add_factory (NMDeviceFactory *factory,
               gboolean check_duplicates,
               const char *path,
-              NMDeviceFactoryManagerFactoryLoadedFunc loaded_func,
+              NMDeviceFactoryManagerFactoryFunc callback,
               gpointer user_data)
 {
 	NMDeviceFactory *found = NULL;
@@ -330,14 +355,14 @@ _add_factory (NMDeviceFactory *factory,
 	for (i = 0; setting_types[i]; i++)
 		g_hash_table_insert (factories_by_setting, (char *) setting_types[i], g_object_ref (factory));
 
-	loaded_func (factory, user_data);
+	callback (factory, user_data);
 
 	nm_log_info (LOGD_HW, "Loaded device plugin: %s (%s)", G_OBJECT_TYPE_NAME (factory), path);
 	return TRUE;
 }
 
 void
-nm_device_factory_manager_load_factories (NMDeviceFactoryManagerFactoryLoadedFunc loaded_func,
+nm_device_factory_manager_load_factories (NMDeviceFactoryManagerFactoryFunc callback,
                                           gpointer user_data)
 {
 	NMDeviceFactory *factory;
@@ -356,7 +381,7 @@ nm_device_factory_manager_load_factories (NMDeviceFactoryManagerFactoryLoadedFun
 
 		factory = (NMDeviceFactory *) g_object_new (ftype, NULL);
 		g_assert (factory);
-		_add_factory (factory, FALSE, "internal", loaded_func, user_data);
+		_add_factory (factory, FALSE, "internal", callback, user_data);
 	}
 
 	paths = read_device_factory_paths ();
@@ -394,7 +419,7 @@ nm_device_factory_manager_load_factories (NMDeviceFactoryManagerFactoryLoadedFun
 		}
 		g_clear_error (&error);
 
-		if (_add_factory (factory, TRUE, g_module_name (plugin), loaded_func, user_data))
+		if (_add_factory (factory, TRUE, g_module_name (plugin), callback, user_data))
 			g_module_make_resident (plugin);
 		else
 			g_module_close (plugin);
