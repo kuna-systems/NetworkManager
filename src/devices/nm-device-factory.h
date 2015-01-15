@@ -243,7 +243,6 @@ gboolean   nm_device_factory_emit_component_added (NMDeviceFactory *factory,
 	}
 
 void _nm_device_factory_internal_register_type (GType factory_type);
-const GSList *nm_device_factory_get_internal_factory_types (void);
 
 /**************************************************************************
  * PRIVATE FACTORY FUNCTIONS - for factory consumers (eg, NMManager).

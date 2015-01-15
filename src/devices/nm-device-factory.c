@@ -165,12 +165,6 @@ _nm_device_factory_internal_register_type (GType factory_type)
 	internal_types = g_slist_prepend (internal_types, GUINT_TO_POINTER (factory_type));
 }
 
-const GSList *
-nm_device_factory_get_internal_factory_types (void)
-{
-	return internal_types;
-}
-
 static void __attribute__((destructor))
 _cleanup (void)
 {
