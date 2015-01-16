@@ -94,6 +94,7 @@ typedef enum NMActStageReturn NMActStageReturn;
 typedef enum {
 	NM_DEVICE_CHECK_CON_AVAILABLE_NONE                                  = 0,
 	NM_DEVICE_CHECK_CON_AVAILABLE_FOR_USER_REQUEST                      = (1L << 0),
+	NM_DEVICE_CHECK_CON_AVAILABLE_DEFAULT_UNMANAGED                     = (1L << 1),
 
 	__NM_DEVICE_CHECK_CON_AVAILABLE_ALL,
 	NM_DEVICE_CHECK_CON_AVAILABLE_ALL                                   = (((__NM_DEVICE_CHECK_CON_AVAILABLE_ALL - 1) << 1) - 1),
@@ -171,8 +172,6 @@ typedef struct {
 	                                            NMConnection *connection,
 	                                            NMDeviceCheckConAvailableFlags flags,
 	                                            const char *specific_object);
-
-	gboolean    check_connection_available_has_user_override;
 
 	gboolean    (* complete_connection)         (NMDevice *self,
 	                                             NMConnection *connection,
@@ -396,9 +395,10 @@ gboolean nm_device_has_pending_action    (NMDevice *device);
 GPtrArray *nm_device_get_available_connections (NMDevice *device,
                                                 const char *specific_object);
 
-gboolean   nm_device_connection_is_available (NMDevice *device,
-                                              NMConnection *connection,
-                                              gboolean for_user_activation_request);
+gboolean   nm_device_check_connection_available (NMDevice *device,
+                                                 NMConnection *connection,
+                                                 NMDeviceCheckConAvailableFlags flags,
+                                                 const char *specific_object);
 
 gboolean nm_device_notify_component_added (NMDevice *device, GObject *component);
 

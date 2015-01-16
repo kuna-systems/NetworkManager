@@ -1891,7 +1891,7 @@ can_auto_connect (NMDevice *self,
 	if (!nm_setting_connection_get_autoconnect (s_con))
 		return FALSE;
 
-	return nm_device_connection_is_available (self, connection, FALSE);
+	return nm_device_check_connection_available (self, connection, NM_DEVICE_CHECK_CON_AVAILABLE_DEFAULT_UNMANAGED, NULL);
 }
 
 /**
@@ -6877,37 +6877,52 @@ nm_device_set_dhcp_anycast_address (NMDevice *self, const char *addr)
 }
 
 /**
- * nm_device_connection_is_available():
+ * nm_device_check_connection_available():
  * @self: the #NMDevice
  * @connection: the #NMConnection to check for availability
- * @for_user_activation_request: set to %TRUE if we are checking whether
- *   the connection is available on an explicit user request. This
- *   also checks for device specific overrides.
+ * @flags: flags to affect the decision making of whether a connection
+ *   is available. Adding a flag can only make a connection more available,
+ *   not less.
+ * @specific_object: a device type dependent argument to further
+ *   filter the result. Passing a non %NULL specific object can only reduce
+ *   the availability of a connection.
  *
- * Check if @connection is available to be activated on @self.  Normally this
- * only checks if the connection is in @self's AvailableConnections property.
- * If @for_user_activation_request is %TRUE then the device is asked to do specific
- * checks that may bypass the AvailableConnections property.
+ * Check if @connection is available to be activated on @self.
  *
  * Returns: %TRUE if @connection can be activated on @self
  */
 gboolean
-nm_device_connection_is_available (NMDevice *self,
-                                   NMConnection *connection,
-                                   gboolean for_user_activation_request)
+nm_device_check_connection_available (NMDevice *self,
+                                      NMConnection *connection,
+                                      NMDeviceCheckConAvailableFlags flags,
+                                      const char *specific_object)
 {
 	NMDevicePrivate *priv = NM_DEVICE_GET_PRIVATE (self);
-	gboolean is_default_unmanaged;
+	NMDeviceState state;
 
-	if (g_hash_table_contains (priv->available_connections, connection))
+	if (   specific_object == NULL
+	    && g_hash_table_contains (priv->available_connections, connection)) {
+		/* Shortcut/Optimization:
+		 *
+		 * With no @specific_object, when the list @available_connection
+		 * contains the @connection, we know that check_connection_available()
+		 * will return %TRUE also. This is true for any @flags, because
+		 * @flags can only extend the result set (not reduce it). */
 		return TRUE;
+	}
 
-	is_default_unmanaged = priv->state == NM_DEVICE_STATE_UNMANAGED && nm_device_get_default_unmanaged (self);
-
-	if (!for_user_activation_request && !is_default_unmanaged) {
-		/* Shortcut: there are only additional checks for either @for_user_activation_request
-		 * or @is_default_unmanaged. Return FALSE right away. */
-		return FALSE;
+	state = nm_device_get_state (self);
+	if (   state == NM_DEVICE_STATE_UNMANAGED
+	    && nm_device_get_default_unmanaged (self)) {
+		if (!NM_FLAGS_ANY (flags, NM_DEVICE_CHECK_CON_AVAILABLE_DEFAULT_UNMANAGED |
+		                          NM_DEVICE_CHECK_CON_AVAILABLE_FOR_USER_REQUEST))
+			return FALSE;
+	} else if (state < NM_DEVICE_STATE_DISCONNECTED) {
+		/* A connection is always available for a direct user request. Regardless
+		 * of the state.
+		 * FIXME: I don't know why, but that was previous behavior. */
+		if (!NM_FLAGS_HAS (flags, NM_DEVICE_CHECK_CON_AVAILABLE_FOR_USER_REQUEST))
+			return FALSE;
 	}
 
 	if (!nm_device_check_connection_compatible (self, connection)) {
@@ -6915,26 +6930,7 @@ nm_device_connection_is_available (NMDevice *self,
 		return FALSE;
 	}
 
-	if (   is_default_unmanaged
-	    && NM_DEVICE_GET_CLASS (self)->check_connection_available (self, connection, NM_DEVICE_CHECK_CON_AVAILABLE_NONE, NULL)) {
-		/* default-unmanaged  devices in UNMANAGED state have no available connections
-		 * so we must manually check whether the connection is available here. */
-		return TRUE;
-	}
-
-	if (   for_user_activation_request
-	    && NM_DEVICE_GET_CLASS (self)->check_connection_available_has_user_override
-	    && NM_DEVICE_GET_CLASS (self)->check_connection_available (self, connection, NM_DEVICE_CHECK_CON_AVAILABLE_FOR_USER_REQUEST, NULL)) {
-		/* Connections for an explicit user activation request might only be available after
-		 * additional checking.
-		 *
-		 * For example in case of hidden Wi-Fi, the connection might not have the 'hidden' property
-		 * set. Support this by allowing device specific overrides.
-		 */
-		return TRUE;
-	}
-
-	return FALSE;
+	return NM_DEVICE_GET_CLASS (self)->check_connection_available (self, connection, flags, specific_object);
 }
 
 static void
@@ -6954,16 +6950,10 @@ _clear_available_connections (NMDevice *self, gboolean do_signal)
 static gboolean
 _try_add_available_connection (NMDevice *self, NMConnection *connection)
 {
-	if (   nm_device_get_state (self) < NM_DEVICE_STATE_DISCONNECTED
-	    && !nm_device_get_default_unmanaged (self))
-		return FALSE;
-
-	if (nm_device_check_connection_compatible (self, connection)) {
-		if (NM_DEVICE_GET_CLASS (self)->check_connection_available (self, connection, NM_DEVICE_CHECK_CON_AVAILABLE_NONE, NULL)) {
-			g_hash_table_add (NM_DEVICE_GET_PRIVATE (self)->available_connections,
-			                  g_object_ref (connection));
-			return TRUE;
-		}
+	if (nm_device_check_connection_available (self, connection, NM_DEVICE_CHECK_CON_AVAILABLE_NONE, NULL)) {
+		g_hash_table_add (NM_DEVICE_GET_PRIVATE (self)->available_connections,
+		                  g_object_ref (connection));
+		return TRUE;
 	}
 	return FALSE;
 }
@@ -7038,8 +7028,8 @@ nm_device_get_available_connections (NMDevice *self, const char *specific_object
 			/* If a specific object is given, only include connections that are
 			 * compatible with it.
 			 */
-			if (   !specific_object
-			    || NM_DEVICE_GET_CLASS (self)->check_connection_available (self, connection, NM_DEVICE_CHECK_CON_AVAILABLE_NONE, specific_object))
+			if (   !specific_object /* << Optimization: we know that the connection is available without @specific_object.  */
+			    || nm_device_check_connection_available (self, connection, NM_DEVICE_CHECK_CON_AVAILABLE_NONE, specific_object))
 				g_ptr_array_add (array, connection);
 		}
 	}
