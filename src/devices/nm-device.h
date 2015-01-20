@@ -93,8 +93,8 @@ typedef enum NMActStageReturn NMActStageReturn;
  * not available if it would be available otherwise. */
 typedef enum {
 	NM_DEVICE_CHECK_CON_AVAILABLE_NONE                                  = 0,
+
 	NM_DEVICE_CHECK_CON_AVAILABLE_FOR_USER_REQUEST                      = (1L << 0),
-	NM_DEVICE_CHECK_CON_AVAILABLE_DEFAULT_UNMANAGED                     = (1L << 1),
 
 	__NM_DEVICE_CHECK_CON_AVAILABLE_ALL,
 	NM_DEVICE_CHECK_CON_AVAILABLE_ALL                                   = (((__NM_DEVICE_CHECK_CON_AVAILABLE_ALL - 1) << 1) - 1),

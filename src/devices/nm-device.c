@@ -1891,7 +1891,7 @@ can_auto_connect (NMDevice *self,
 	if (!nm_setting_connection_get_autoconnect (s_con))
 		return FALSE;
 
-	return nm_device_check_connection_available (self, connection, NM_DEVICE_CHECK_CON_AVAILABLE_DEFAULT_UNMANAGED, NULL);
+	return nm_device_check_connection_available (self, connection, NM_DEVICE_CHECK_CON_AVAILABLE_NONE, NULL);
 }
 
 /**
@@ -6897,38 +6897,20 @@ nm_device_check_connection_available (NMDevice *self,
                                       NMDeviceCheckConAvailableFlags flags,
                                       const char *specific_object)
 {
-	NMDevicePrivate *priv = NM_DEVICE_GET_PRIVATE (self);
 	NMDeviceState state;
 
-	if (   specific_object == NULL
-	    && g_hash_table_contains (priv->available_connections, connection)) {
-		/* Shortcut/Optimization:
-		 *
-		 * With no @specific_object, when the list @available_connection
-		 * contains the @connection, we know that check_connection_available()
-		 * will return %TRUE also. This is true for any @flags, because
-		 * @flags can only extend the result set (not reduce it). */
-		return TRUE;
-	}
-
 	state = nm_device_get_state (self);
-	if (   state == NM_DEVICE_STATE_UNMANAGED
-	    && nm_device_get_default_unmanaged (self)) {
-		if (!NM_FLAGS_ANY (flags, NM_DEVICE_CHECK_CON_AVAILABLE_DEFAULT_UNMANAGED |
-		                          NM_DEVICE_CHECK_CON_AVAILABLE_FOR_USER_REQUEST))
-			return FALSE;
-	} else if (state < NM_DEVICE_STATE_DISCONNECTED) {
-		/* A connection is always available for a direct user request. Regardless
-		 * of the state.
-		 * FIXME: I don't know why, but that was previous behavior. */
-		if (!NM_FLAGS_HAS (flags, NM_DEVICE_CHECK_CON_AVAILABLE_FOR_USER_REQUEST))
-			return FALSE;
-	}
-
-	if (!nm_device_check_connection_compatible (self, connection)) {
-		/* An incompatilbe connection is never available. */
+	if (state < NM_DEVICE_STATE_UNMANAGED)
 		return FALSE;
-	}
+	else if (   state < NM_DEVICE_STATE_UNAVAILABLE
+	         && nm_device_get_unmanaged_flag (self, NM_UNMANAGED_ALL & ~NM_UNMANAGED_DEFAULT))
+		return FALSE;
+	else if (   state < NM_DEVICE_STATE_DISCONNECTED
+	         && !nm_device_is_available (self, NM_DEVICE_CHECK_DEV_AVAILABLE_NONE))
+		return FALSE;
+
+	if (!nm_device_check_connection_compatible (self, connection))
+		return FALSE;
 
 	return NM_DEVICE_GET_CLASS (self)->check_connection_available (self, connection, flags, specific_object);
 }
