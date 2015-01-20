@@ -107,6 +107,7 @@ struct _NMDevice {
  * a device appear more available. It can never make a device less available. */
 typedef enum {
 	NM_DEVICE_CHECK_DEV_AVAILABLE_NONE                                  = 0,
+	NM_DEVICE_CHECK_DEV_AVAILABLE_IGNORE_CARRIER                        = (1L << 0),
 
 	__NM_DEVICE_CHECK_DEV_AVAILABLE_ALL,
 	NM_DEVICE_CHECK_DEV_AVAILABLE_ALL                                   = (((__NM_DEVICE_CHECK_DEV_AVAILABLE_ALL - 1) << 1) - 1),
