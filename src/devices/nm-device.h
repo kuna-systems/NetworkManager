@@ -148,6 +148,8 @@ typedef struct {
 	                                            gboolean for_user_activation_request,
 	                                            const char *specific_object);
 
+	gboolean    check_connection_available_has_user_override;
+
 	gboolean    (* complete_connection)         (NMDevice *self,
 	                                             NMConnection *connection,
 	                                             const char *specific_object,

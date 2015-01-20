@@ -6915,6 +6915,7 @@ nm_device_connection_is_available (NMDevice *self,
 	}
 
 	if (   for_user_activation_request
+	    && NM_DEVICE_GET_CLASS (self)->check_connection_available_has_user_override
 	    && NM_DEVICE_GET_CLASS (self)->check_connection_available (self, connection, TRUE, NULL)) {
 		/* Connections for an explicit user activation request might only be available after
 		 * additional checking.
