@@ -413,7 +413,7 @@ _set_property_response (NMConnectivity *self, const char *response, gboolean do_
 /**************************************************************************/
 
 static void
-_config_changed_cb (NMConfig *config, GHashTable *changes, NMConfigData *old_data, NMConnectivity *self)
+_config_changed_cb (NMConfig *config, NMConfigChangeFlags changes, NMConfigData *old_data, NMConnectivity *self)
 {
 	NMConfigData *new_data;
 	gboolean changed = FALSE;
