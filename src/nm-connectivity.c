@@ -344,7 +344,7 @@ nm_connectivity_check_finish (NMConnectivity  *self,
 
 /**************************************************************************/
 
-static gboolean
+static void
 _set_property_uri (NMConnectivity *self, const char *uri, gboolean do_reschedule)
 {
 	NMConnectivityPrivate *priv = NM_CONNECTIVITY_GET_PRIVATE (self);
@@ -366,38 +366,36 @@ _set_property_uri (NMConnectivity *self, const char *uri, gboolean do_reschedule
 #endif
 
 	if (!g_strcmp0 (uri, priv->uri))
-		return FALSE;
+		return;
 	g_free (priv->uri);
 	priv->uri = g_strdup (uri);
 
 	if (do_reschedule)
 		_reschedule_periodic_checks (self, TRUE);
 	g_object_notify (G_OBJECT (self), NM_CONNECTIVITY_URI);
-	return TRUE;
 }
 
-static gboolean
+static void
 _set_property_interval (NMConnectivity *self, guint interval, gboolean do_reschedule)
 {
 	NMConnectivityPrivate *priv = NM_CONNECTIVITY_GET_PRIVATE (self);
 
 	if (priv->interval == interval)
-		return FALSE;
+		return;
 	priv->interval = interval;
 
 	if (do_reschedule)
 		_reschedule_periodic_checks (self, TRUE);
 	g_object_notify (G_OBJECT (self), NM_CONNECTIVITY_URI);
-	return TRUE;
 }
 
-static gboolean
+static void
 _set_property_response (NMConnectivity *self, const char *response, gboolean do_reschedule)
 {
 	NMConnectivityPrivate *priv = NM_CONNECTIVITY_GET_PRIVATE (self);
 
 	if (!g_strcmp0 (response, priv->response))
-		return FALSE;
+		return;
 
 	/* a response %NULL means, DEFAULT_RESPONSE. Any other response
 	 * (including "") is accepted. */
@@ -407,7 +405,6 @@ _set_property_response (NMConnectivity *self, const char *response, gboolean do_
 	if (do_reschedule)
 		_reschedule_periodic_checks (self, TRUE);
 	g_object_notify (G_OBJECT (self), NM_CONNECTIVITY_URI);
-	return TRUE;
 }
 
 /**************************************************************************/
@@ -415,27 +412,27 @@ _set_property_response (NMConnectivity *self, const char *response, gboolean do_
 static void
 _config_changed_cb (NMConfig *config, NMConfigChangeFlags changes, NMConfigData *old_data, NMConnectivity *self)
 {
+	NMConnectivityPrivate *priv = NM_CONNECTIVITY_GET_PRIVATE (self);
 	NMConfigData *new_data;
-	gboolean changed = FALSE;
 
 	g_return_if_fail (NM_CONNECTIVITY_GET_PRIVATE (self)->config == config);
+
+	if (!NM_FLAGS_HAS (changes, NM_CONFIG_CHANGE_CONNECTIVITY))
+		return;
 
 	new_data = nm_config_get_data (config);
 
 	g_object_freeze_notify (G_OBJECT (self));
-	changed |= _set_property_uri (self, nm_config_data_get_connectivity_uri (new_data), FALSE);
-	changed |= _set_property_interval (self, nm_config_data_get_connectivity_interval (new_data), FALSE);
-	changed |= _set_property_response (self, nm_config_data_get_connectivity_response (new_data), FALSE);
-	if (changed) {
-		NMConnectivityPrivate *priv = NM_CONNECTIVITY_GET_PRIVATE (self);
+	_set_property_uri (self, nm_config_data_get_connectivity_uri (new_data), FALSE);
+	_set_property_interval (self, nm_config_data_get_connectivity_interval (new_data), FALSE);
+	_set_property_response (self, nm_config_data_get_connectivity_response (new_data), FALSE);
 
-		if (priv->uri && priv->interval) {
-			_LOGD ("update config: url=%s, interval=%u seconds, response=%s",
-			       priv->uri, priv->interval, str_if_set (priv->response, DEFAULT_RESPONSE));
-		} else
-			_LOGD ("update config: disabled");
-		_reschedule_periodic_checks (self, TRUE);
-	}
+	if (priv->uri && priv->interval) {
+		_LOGD ("update config: url=%s, interval=%u seconds, response=%s",
+		       priv->uri, priv->interval, str_if_set (priv->response, DEFAULT_RESPONSE));
+	} else
+		_LOGD ("update config: disabled");
+	_reschedule_periodic_checks (self, TRUE);
 	g_object_thaw_notify (G_OBJECT (self));
 }
 
