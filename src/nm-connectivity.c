@@ -45,6 +45,7 @@ typedef struct {
 
 #if WITH_CONCHECK
 	SoupSession *soup_session;
+	gboolean initical_check_obsoleted;
 	guint check_id;
 #endif
 
@@ -210,7 +211,8 @@ idle_start_periodic_checks (gpointer user_data)
 	NMConnectivityPrivate *priv = NM_CONNECTIVITY_GET_PRIVATE (self);
 
 	priv->check_id = g_timeout_add_seconds (priv->interval, run_check, self);
-	run_check (self);
+	if (!priv->initical_check_obsoleted)
+		run_check (self);
 
 	return FALSE;
 }
@@ -227,6 +229,7 @@ _reschedule_periodic_checks (NMConnectivity *self, gboolean force_reschedule)
 			if (priv->check_id)
 				g_source_remove (priv->check_id);
 			priv->check_id = g_timeout_add (0, idle_start_periodic_checks, self);
+			priv->initical_check_obsoleted = FALSE;
 		}
 	} else {
 		if (priv->check_id) {
@@ -252,6 +255,7 @@ nm_connectivity_set_online (NMConnectivity *self,
 
 	online = !!online;
 	if (priv->online != online) {
+		nm_log_dbg (LOGD_CONCHECK, "connectivity: set %s", online ? "online" : "offline");
 		priv->online = online;
 		_reschedule_periodic_checks (self, FALSE);
 	}
@@ -289,6 +293,7 @@ nm_connectivity_check_async (NMConnectivity      *self,
 		                            msg,
 		                            nm_connectivity_check_cb,
 		                            cb_data);
+		priv->initical_check_obsoleted = TRUE;
 
 		nm_log_dbg (LOGD_CONCHECK, "%sconnectivity check: send request to '%s'", IS_PERIODIC_CHECK (callback) ? "periodic " : "", priv->uri);
 		return;
