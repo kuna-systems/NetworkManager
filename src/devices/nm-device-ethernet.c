@@ -1495,13 +1495,17 @@ new_default_connection (NMDevice *self)
 	return connection;
 }
 
-static gboolean
+static NMMatchSpecMatchType
 spec_match_list (NMDevice *device, const GSList *specs)
 {
+	NMMatchSpecMatchType matched;
 	NMDeviceEthernetPrivate *priv = NM_DEVICE_ETHERNET_GET_PRIVATE (device);
 
-	if (priv->subchannels && nm_match_spec_s390_subchannels (specs, priv->subchannels))
-		return TRUE;
+	if (priv->subchannels) {
+		matched = nm_match_spec_s390_subchannels (specs, priv->subchannels);
+		if (matched != NM_MATCH_SPEC_NO_MATCH)
+			return matched;
+	}
 
 	return NM_DEVICE_CLASS (nm_device_ethernet_parent_class)->spec_match_list (device, specs);
 }

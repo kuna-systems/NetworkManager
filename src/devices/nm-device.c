@@ -8080,28 +8080,28 @@ nm_device_spec_match_list (NMDevice *self, const GSList *specs)
 	if (!specs)
 		return FALSE;
 
-	return NM_DEVICE_GET_CLASS (self)->spec_match_list (self, specs);
+	return NM_DEVICE_GET_CLASS (self)->spec_match_list (self, specs) != NM_MATCH_SPEC_MATCH;
 }
 
-static gboolean
+static NMMatchSpecMatchType
 spec_match_list (NMDevice *self, const GSList *specs)
 {
 	NMDevicePrivate *priv = NM_DEVICE_GET_PRIVATE (self);
-	gboolean matched = FALSE;
+	NMMatchSpecMatchType matched;
 	const GSList *iter;
 
 	for (iter = specs; iter; iter = g_slist_next (iter)) {
 		if (!strcmp ((const char *) iter->data, "*"))
-			return TRUE;
+			return NM_MATCH_SPEC_MATCH;
 	}
 
-	if (priv->hw_addr_len)
+	if (priv->hw_addr_len) {
 		matched = nm_match_spec_hwaddr (specs, priv->hw_addr);
+		if (matched != NM_MATCH_SPEC_NO_MATCH)
+			return matched;
+	}
 
-	if (!matched)
-		matched = nm_match_spec_interface_name (specs, nm_device_get_iface (self));
-
-	return matched;
+	return nm_match_spec_interface_name (specs, nm_device_get_iface (self));
 }
 
 /***********************************************************/

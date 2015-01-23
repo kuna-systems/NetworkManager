@@ -867,39 +867,66 @@ nm_utils_find_helper(const char *progname, const char *try_first, GError **error
 #define MAC_TAG "mac:"
 #define INTERFACE_NAME_TAG "interface-name:"
 #define SUBCHAN_TAG "s390-subchannels:"
+#define TAG_EXCEPT "except:"
+#define EVAL_MATCH(match, had_except)    (match ? (had_except ? NM_MATCH_SPEC_NEG_MATCH : NM_MATCH_SPEC_MATCH) : NM_MATCH_SPEC_NO_MATCH)
 
-gboolean
+static const char *
+_match_except (const char *spec_str, gboolean *out_except)
+{
+	if (!g_ascii_strncasecmp (spec_str, TAG_EXCEPT, STRLEN (TAG_EXCEPT))) {
+		spec_str += STRLEN (TAG_EXCEPT);
+		*out_except = TRUE;
+	} else
+		*out_except = FALSE;
+	return spec_str;
+}
+
+NMMatchSpecMatchType
 nm_match_spec_hwaddr (const GSList *specs, const char *hwaddr)
 {
 	const GSList *iter;
+	gboolean match = FALSE;
+	gboolean had_except = FALSE;
 
-	g_return_val_if_fail (hwaddr != NULL, FALSE);
+	g_return_val_if_fail (hwaddr != NULL, NM_MATCH_SPEC_NO_MATCH);
 
 	for (iter = specs; iter; iter = g_slist_next (iter)) {
 		const char *spec_str = iter->data;
+		gboolean except;
+
+		spec_str = _match_except (spec_str, &except);
 
 		if (!g_ascii_strncasecmp (spec_str, INTERFACE_NAME_TAG, STRLEN (INTERFACE_NAME_TAG)))
 			continue;
 
 		if (!g_ascii_strncasecmp (spec_str, MAC_TAG, STRLEN (MAC_TAG)))
 			spec_str += STRLEN (MAC_TAG);
+		else if (except)
+			continue;
 
-		if (nm_utils_hwaddr_matches (spec_str, -1, hwaddr, -1))
-			return TRUE;
+		if (nm_utils_hwaddr_matches (spec_str, -1, hwaddr, -1)) {
+			match = TRUE;
+			had_except |= except;
+		}
 	}
-	return FALSE;
+	return EVAL_MATCH (match, had_except);
 }
 
-gboolean
+NMMatchSpecMatchType
 nm_match_spec_interface_name (const GSList *specs, const char *interface_name)
 {
 	const GSList *iter;
+	gboolean match = FALSE;
+	gboolean had_except = FALSE;
 
-	g_return_val_if_fail (interface_name != NULL, FALSE);
+	g_return_val_if_fail (interface_name != NULL, NM_MATCH_SPEC_NO_MATCH);
 
 	for (iter = specs; iter; iter = g_slist_next (iter)) {
 		const char *spec_str = iter->data;
 		gboolean use_pattern = FALSE;
+		gboolean except;
+
+		spec_str = _match_except (spec_str, &except);
 
 		if (!g_ascii_strncasecmp (spec_str, MAC_TAG, STRLEN (MAC_TAG)))
 			continue;
@@ -910,14 +937,16 @@ nm_match_spec_interface_name (const GSList *specs, const char *interface_name)
 				spec_str += 1;
 			else
 				use_pattern=TRUE;
-		}
+		} else if (except)
+			continue;
 
-		if (!strcmp (spec_str, interface_name))
-			return TRUE;
-		if (use_pattern && g_pattern_match_simple (spec_str, interface_name))
-			return TRUE;
+		if (   !strcmp (spec_str, interface_name)
+		    || (use_pattern && g_pattern_match_simple (spec_str, interface_name))) {
+			match = TRUE;
+			had_except |= except;
+		}
 	}
-	return FALSE;
+	return EVAL_MATCH (match, had_except);
 }
 
 #define BUFSIZE 10
@@ -986,31 +1015,37 @@ parse_subchannels (const char *subchannels, guint32 *a, guint32 *b, guint32 *c)
 	return TRUE;
 }
 
-gboolean
+NMMatchSpecMatchType
 nm_match_spec_s390_subchannels (const GSList *specs, const char *subchannels)
 {
 	const GSList *iter;
 	guint32 a = 0, b = 0, c = 0;
 	guint32 spec_a = 0, spec_b = 0, spec_c = 0;
+	gboolean match = FALSE;
+	gboolean had_except = FALSE;
 
-	g_return_val_if_fail (subchannels != NULL, FALSE);
+	g_return_val_if_fail (subchannels != NULL, NM_MATCH_SPEC_NO_MATCH);
 
 	if (!parse_subchannels (subchannels, &a, &b, &c))
-		return FALSE;
+		return NM_MATCH_SPEC_NO_MATCH;
 
 	for (iter = specs; iter; iter = g_slist_next (iter)) {
-		const char *spec = iter->data;
+		const char *spec_str = iter->data;
+		gboolean except;
 
-		if (!strncmp (spec, SUBCHAN_TAG, strlen (SUBCHAN_TAG))) {
-			spec += strlen (SUBCHAN_TAG);
-			if (parse_subchannels (spec, &spec_a, &spec_b, &spec_c)) {
-				if (a == spec_a && b == spec_b && c == spec_c)
-					return TRUE;
+		spec_str = _match_except (spec_str, &except);
+
+		if (!strncmp (spec_str, SUBCHAN_TAG, strlen (SUBCHAN_TAG))) {
+			spec_str += strlen (SUBCHAN_TAG);
+			if (parse_subchannels (spec_str, &spec_a, &spec_b, &spec_c)) {
+				if (a == spec_a && b == spec_b && c == spec_c) {
+					match = TRUE;
+					had_except |= except;
+				}
 			}
 		}
 	}
-
-	return FALSE;
+	return EVAL_MATCH (match, had_except);
 }
 
 const char *
