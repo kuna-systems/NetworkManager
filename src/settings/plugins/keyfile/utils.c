@@ -123,14 +123,10 @@ nm_keyfile_plugin_utils_escape_filename (const char *filename)
 
 	/* Convert '/' to ESCAPE_CHAR */
 	for (f = filename; f[0]; f++) {
-		switch (f[0]) {
-		case '/':
+		if (f[0] == '/')
 			g_string_append_c (str, ESCAPE_CHAR);
-			break;
-		default:
+		else
 			g_string_append_c (str, f[0]);
-			break;
-		}
 	}
 
 	/* escape_filename() must avoid anything that should_ignore_file() would reject.
