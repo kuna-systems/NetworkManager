@@ -774,6 +774,57 @@ test_nm_utils_uuid_generate_from_strings (void)
 
 /*******************************************/
 
+static void
+test_match_spec_ifname (const char *spec_str, const char **matches, const char **no_matches, const char **neg_matches)
+{
+	char **spec_str_split;
+	GSList *specs = NULL;
+	guint i;
+
+	g_assert (spec_str);
+	spec_str_split = g_strsplit_set (spec_str, ";,", -1);
+	for (i = 0; spec_str_split[i]; i++) {
+		if (spec_str_split[i])
+			specs = g_slist_prepend (specs, spec_str_split[i]);
+	}
+	specs = g_slist_reverse (specs);
+
+	for (i = 0; matches && matches[i]; i++)
+		g_assert (nm_match_spec_interface_name (specs, matches[i]) == NM_MATCH_SPEC_MATCH);
+	for (i = 0; no_matches && no_matches[i]; i++)
+		g_assert (nm_match_spec_interface_name (specs, no_matches[i]) == NM_MATCH_SPEC_NO_MATCH);
+	for (i = 0; neg_matches && neg_matches[i]; i++)
+		g_assert (nm_match_spec_interface_name (specs, neg_matches[i]) == NM_MATCH_SPEC_NEG_MATCH);
+
+	g_slist_free (specs);
+	g_strfreev (spec_str_split);
+}
+
+static void
+test_nm_match_spec_interface_name (void)
+{
+#define S(...) ((const char *[]) { __VA_ARGS__, NULL } )
+	test_match_spec_ifname ("interface-name:em1",
+	                        S ("em1"),
+	                        S ("em2", "em", "em11"),
+	                        NULL);
+	test_match_spec_ifname ("interface-name:em*",
+	                        S ("em", "em1", "em2", "em11"),
+	                        S ("e"),
+	                        NULL);
+	test_match_spec_ifname ("interface-name:em\\*",
+	                        S ("em\\", "em\\1", "em\\2", "em\\11"),
+	                        S ("em"),
+	                        NULL);
+	test_match_spec_ifname ("interface-name:=em*",
+	                        S ("em*"),
+	                        S ("em", "em1"),
+	                        NULL);
+#undef S
+}
+
+/*******************************************/
+
 NMTST_DEFINE ();
 
 int
@@ -797,6 +848,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/general/connection-sort/autoconnect-priority", test_connection_sort_autoconnect_priority);
 
 	g_test_add_func ("/general/nm_utils_uuid_generate_from_strings", test_nm_utils_uuid_generate_from_strings);
+	g_test_add_func ("/general/nm_match_spec_interface_name", test_nm_match_spec_interface_name);
 
 	return g_test_run ();
 }
