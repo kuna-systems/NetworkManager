@@ -1230,9 +1230,6 @@ device_recheck_slave_status (NMDevice *self, NMPlatformLink *plink)
 				   nm_platform_link_get_name (plink->master));
 		}
 	}
-
-	if (priv->master)
-		nm_device_enslave_slave (priv->master, self, NULL);
 }
 
 static void
