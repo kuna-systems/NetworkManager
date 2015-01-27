@@ -1651,6 +1651,11 @@ nm_device_unrealize (NMDevice *self, gboolean remove_resources, GError **error)
 
 	g_object_thaw_notify (G_OBJECT (self));
 
+	nm_device_state_changed (self,
+	                         NM_DEVICE_STATE_UNMANAGED,
+	                         remove_resources ?
+	                             NM_DEVICE_STATE_REASON_USER_REQUESTED : NM_DEVICE_STATE_REASON_NOW_UNMANAGED);
+
 	return success;
 }
 
