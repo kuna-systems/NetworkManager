@@ -408,6 +408,33 @@ _set_property_response (NMConnectivity *self, const char *response, gboolean do_
 
 /**************************************************************************/
 
+void
+nm_connectivity_set (NMConnectivity *self,
+                     const char *uri,
+                     guint interval,
+                     const char *response)
+{
+	gboolean changed = FALSE;
+
+	g_return_if_fail (NM_IS_CONNECTIVITY (self));
+
+	g_object_freeze_notify (G_OBJECT (self));
+	changed |= _set_property_uri (self, uri, FALSE);
+	changed |= _set_property_interval (self, interval, FALSE);
+	changed |= _set_property_response (self, response, FALSE);
+	if (changed) {
+		NMConnectivityPrivate *priv = NM_CONNECTIVITY_GET_PRIVATE (self);
+
+		if (priv->uri && priv->interval) {
+			_LOGD ("set: url=%s, interval=%u seconds, response=%s",
+			       priv->uri, priv->interval, str_if_set (priv->response, DEFAULT_RESPONSE));
+		} else
+			_LOGD ("set: disabled");
+		_reschedule_periodic_checks (self, TRUE);
+	}
+	g_object_thaw_notify (G_OBJECT (self));
+}
+
 NMConnectivity *
 nm_connectivity_new (const char *uri,
                      guint interval,

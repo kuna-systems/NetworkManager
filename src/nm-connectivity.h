@@ -60,6 +60,11 @@ NMConnectivity *     nm_connectivity_new (const char *uri,
 void                 nm_connectivity_set_online   (NMConnectivity       *self,
                                                    gboolean              online);
 
+void                 nm_connectivity_set (NMConnectivity *self,
+                                          const char *uri,
+                                          guint interval,
+                                          const char *response);
+
 NMConnectivityState  nm_connectivity_get_state    (NMConnectivity       *self);
 
 void                 nm_connectivity_check_async  (NMConnectivity       *self,
