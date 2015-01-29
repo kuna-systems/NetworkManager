@@ -167,6 +167,7 @@ typedef struct {
 
 	GSList *devices;
 	NMState state;
+	NMConfig *config;
 	NMConnectivity *connectivity;
 
 	int ignore_link_added_cb;
@@ -4748,7 +4749,6 @@ nm_manager_new (NMSettings *settings,
 	g_signal_connect (priv->policy, "notify::" NM_POLICY_ACTIVATING_IP6_DEVICE,
 	                  G_CALLBACK (policy_activating_device_changed), singleton);
 
-	priv->connectivity = nm_connectivity_new ();
 	g_signal_connect (priv->connectivity, "notify::" NM_CONNECTIVITY_STATE,
 	                  G_CALLBACK (connectivity_changed), singleton);
 
@@ -4818,9 +4818,16 @@ nm_manager_init (NMManager *manager)
 	DBusGConnection *g_connection;
 	guint i;
 	GFile *file;
+	NMConfigData *config_data;
 
 	/* Initialize rfkill structures and states */
 	memset (priv->radio_states, 0, sizeof (priv->radio_states));
+
+	priv->config = g_object_ref (nm_config_get ());
+	config_data = nm_config_get_data (priv->config);
+	priv->connectivity = nm_connectivity_new (nm_config_data_get_connectivity_uri (config_data),
+	                                          nm_config_data_get_connectivity_interval (config_data),
+	                                          nm_config_data_get_connectivity_response (config_data));
 
 	priv->radio_states[RFKILL_TYPE_WLAN].user_enabled = TRUE;
 	priv->radio_states[RFKILL_TYPE_WLAN].key = "WirelessEnabled";
@@ -5069,7 +5076,11 @@ dispose (GObject *object)
 	g_clear_object (&priv->primary_connection);
 	g_clear_object (&priv->activating_connection);
 
-	g_clear_object (&priv->connectivity);
+	g_clear_object (&priv->config);
+	if (priv->connectivity) {
+		g_signal_handlers_disconnect_by_func (priv->connectivity, connectivity_changed, manager);
+		g_clear_object (&priv->connectivity);
+	}
 
 	g_free (priv->hostname);
 
